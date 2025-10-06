@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { TrendingUp, Wallet, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { CryptoChart } from '../components/CryptoChart'; // ✅ Correct import
 
 interface UserProfile {
   available_balance: number;
@@ -37,6 +38,7 @@ export const DashboardPage = () => {
   }, [user]);
 
   const loadData = async () => {
+    // Fetch user profile
     const { data: profileData } = await supabase
       .from('user_profiles')
       .select('*')
@@ -45,6 +47,7 @@ export const DashboardPage = () => {
 
     if (profileData) setProfile(profileData);
 
+    // Fetch recent trades
     const { data: tradesData } = await supabase
       .from('trades')
       .select('*')
@@ -54,6 +57,7 @@ export const DashboardPage = () => {
 
     if (tradesData) setRecentTrades(tradesData);
 
+    // Fetch recent deposits
     const { data: depositsData } = await supabase
       .from('deposits')
       .select('*')
@@ -81,6 +85,7 @@ export const DashboardPage = () => {
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-white text-3xl font-bold mb-8">Dashboard</h1>
 
+        {/* 💰 Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 border border-blue-500/20">
             <div className="flex items-center justify-between mb-2">
@@ -117,13 +122,24 @@ export const DashboardPage = () => {
               <span className="text-gray-400 text-sm">Total Profit</span>
               <TrendingUp size={20} className="text-green-500" />
             </div>
-            <div className={`text-3xl font-bold ${(profile?.total_profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div
+              className={`text-3xl font-bold ${
+                (profile?.total_profit || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+              }`}
+            >
               {formatCurrency(profile?.total_profit || 0)}
             </div>
           </div>
         </div>
 
+        {/* 📈 Crypto & Metals Chart */}
+        <div className="mb-8">
+          <CryptoChart />
+        </div>
+
+        {/* 🧾 Recent trades and deposits */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Trades */}
           <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
             <h2 className="text-white text-xl font-semibold mb-6">Recent Trades</h2>
 
@@ -132,12 +148,19 @@ export const DashboardPage = () => {
             ) : (
               <div className="space-y-3">
                 {recentTrades.map((trade) => (
-                  <div key={trade.id} className="flex items-center justify-between p-4 bg-[#1a1d29] rounded-lg">
+                  <div
+                    key={trade.id}
+                    className="flex items-center justify-between p-4 bg-[#1a1d29] rounded-lg"
+                  >
                     <div>
                       <div className="text-white font-semibold">{trade.trading_pair}</div>
                       <div className="text-gray-400 text-sm">{formatDate(trade.opened_at)}</div>
                     </div>
-                    <div className={`text-lg font-semibold ${trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    <div
+                      className={`text-lg font-semibold ${
+                        trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}
+                    >
                       {formatCurrency(trade.profit_loss)}
                     </div>
                   </div>
@@ -146,6 +169,7 @@ export const DashboardPage = () => {
             )}
           </div>
 
+          {/* Deposits */}
           <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
             <h2 className="text-white text-xl font-semibold mb-6">Recent Deposits</h2>
 
@@ -154,10 +178,17 @@ export const DashboardPage = () => {
             ) : (
               <div className="space-y-3">
                 {recentDeposits.map((deposit) => (
-                  <div key={deposit.id} className="flex items-center justify-between p-4 bg-[#1a1d29] rounded-lg">
+                  <div
+                    key={deposit.id}
+                    className="flex items-center justify-between p-4 bg-[#1a1d29] rounded-lg"
+                  >
                     <div>
-                      <div className="text-white font-semibold">{formatCurrency(deposit.amount)}</div>
-                      <div className="text-gray-400 text-sm">{formatDate(deposit.created_at)}</div>
+                      <div className="text-white font-semibold">
+                        {formatCurrency(deposit.amount)}
+                      </div>
+                      <div className="text-gray-400 text-sm">
+                        {formatDate(deposit.created_at)}
+                      </div>
                     </div>
                     <div>
                       <span

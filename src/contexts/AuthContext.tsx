@@ -17,15 +17,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // Listen for login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-      })();
+      setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
@@ -40,15 +40,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
 
+    // Insert profile if user was created
     if (data.user) {
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert({
           id: data.user.id,
           username,
-          trading_balance: 0,
-          checking_account: 0,
-          tokens_balance: 0,
+          available_balance: 0,
+          total_deposited: 0,
+          total_withdrawn: 0,
+          total_profit: 0,
         });
 
       if (profileError) throw profileError;
@@ -69,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
