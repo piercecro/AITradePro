@@ -17,14 +17,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Load the initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for login/logout
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -37,24 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Pass username into user_metadata so Supabase trigger can use it
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }, // 👈 sent to auth.users.raw_user_meta_data
+      },
+    });
     if (error) throw error;
-
-    // Insert profile if user was created
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: data.user.id,
-          username,
-          available_balance: 0,
-          total_deposited: 0,
-          total_withdrawn: 0,
-          total_profit: 0,
-        });
-
-      if (profileError) throw profileError;
-    }
   };
 
   const signOut = async () => {
