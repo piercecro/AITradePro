@@ -1,0 +1,2 @@
+# AITradePro
+Ai assisted trading
