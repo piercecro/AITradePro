@@ -1,3 +1,4 @@
+// src/pages/AdminDepositPanel.tsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -24,20 +25,19 @@ export const AdminDepositPanel = () => {
     loadDeposits();
   }, []);
 
+  // ✅ Load all deposits
   const loadDeposits = async () => {
     setLoading(true);
     try {
       console.log("🔄 Fetching deposits...");
 
-      // ✅ Try with relationship first
       let { data, error } = await supabase
         .from("deposits")
         .select("*, user_profiles(username, email)")
         .order("created_at", { ascending: false });
 
-      // ✅ Fallback if relationship missing
       if (error && error.message.includes("relationship")) {
-        console.warn("⚠️ Relationship not found. Using fallback query.");
+        console.warn("⚠️ Relationship not found, using fallback query.");
         const { data: rawDeposits, error: fallbackError } = await supabase
           .from("deposits")
           .select("*")
@@ -45,7 +45,7 @@ export const AdminDepositPanel = () => {
 
         if (fallbackError) throw fallbackError;
 
-        // Fetch user info manually for each deposit
+        // fetch users manually
         const withUsers = await Promise.all(
           (rawDeposits || []).map(async (dep) => {
             const { data: userProfile } = await supabase
@@ -56,6 +56,7 @@ export const AdminDepositPanel = () => {
             return { ...dep, user_profiles: userProfile };
           })
         );
+
         data = withUsers;
       } else if (error) {
         throw error;
@@ -71,20 +72,27 @@ export const AdminDepositPanel = () => {
     }
   };
 
-  // ✅ Confirm deposit and update balance
+  // ✅ Confirm deposit and update user balance
   const handleConfirmDeposit = async (deposit: Deposit) => {
-    if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
+    const confirmAction = window.confirm(
+      `Confirm deposit of $${deposit.amount}?`
+    );
+    if (!confirmAction) return;
+
     setActionLoading(deposit.id);
 
     try {
+      // 1️⃣ Update deposit status
       const { error: depositError } = await supabase
         .from("deposits")
         .update({ status: "confirmed" })
         .eq("id", deposit.id);
 
-      if (depositError) throw depositError;
+      if (depositError)
+        throw new Error("Deposit update failed: " + depositError.message);
 
-      const { error: balanceError } = await supabase.rpc(
+      // 2️⃣ Run RPC to update user balances
+      const { data, error: rpcError } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
           user_id_input: deposit.user_id,
@@ -92,24 +100,34 @@ export const AdminDepositPanel = () => {
         }
       );
 
-      if (balanceError) throw balanceError;
+      if (rpcError) {
+        console.error("RPC ERROR:", rpcError);
+        throw new Error("RPC failed: " + rpcError.message);
+      }
 
+      console.log("RPC success result:", data);
       alert(
         `✅ Deposit confirmed for ${
-          deposit.user_profiles?.email || "User"
+          deposit.user_profiles?.email || deposit.user_id
         } ($${deposit.amount})`
       );
+
       loadDeposits();
     } catch (err: any) {
-      console.error("❌ Error confirming deposit:", err.message);
+      console.error("❌ Confirm deposit error:", err);
       alert("Error confirming deposit: " + err.message);
     } finally {
       setActionLoading(null);
     }
   };
 
+  // ❌ Reject deposit
   const handleRejectDeposit = async (deposit: Deposit) => {
-    if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
+    const rejectAction = window.confirm(
+      `Reject deposit of $${deposit.amount}?`
+    );
+    if (!rejectAction) return;
+
     setActionLoading(deposit.id);
 
     try {
@@ -118,7 +136,7 @@ export const AdminDepositPanel = () => {
         .update({ status: "rejected" })
         .eq("id", deposit.id);
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       alert(`❌ Deposit rejected for ${deposit.user_profiles?.email || "User"}`);
       loadDeposits();
