@@ -1,4 +1,3 @@
-```tsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -25,7 +24,6 @@ export const AdminDepositPanel = () => {
     loadDeposits();
   }, []);
 
-  // ✅ Load deposits with fallback for missing relationship
   const loadDeposits = async () => {
     setLoading(true);
     try {
@@ -34,7 +32,6 @@ export const AdminDepositPanel = () => {
         .select("*, user_profiles(username, email)")
         .order("created_at", { ascending: false });
 
-      // fallback: manually join if relationship missing
       if (error && error.message.includes("relationship")) {
         console.warn("⚠️ Relationship missing. Using manual join...");
         const { data: raw, error: err2 } = await supabase
@@ -42,6 +39,7 @@ export const AdminDepositPanel = () => {
           .select("*")
           .order("created_at", { ascending: false });
         if (err2) throw err2;
+
         const withUsers = await Promise.all(
           (raw || []).map(async (d) => {
             const { data: user } = await supabase
@@ -64,20 +62,21 @@ export const AdminDepositPanel = () => {
     }
   };
 
-  // ✅ Confirm deposit and call RPC to update user balance
   const handleConfirmDeposit = async (deposit: Deposit) => {
-    if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
+    const confirmAction = window.confirm(
+      `Confirm deposit of $${deposit.amount}?`
+    );
+    if (!confirmAction) return;
+
     setActionLoading(deposit.id);
 
     try {
-      // Step 1: mark deposit confirmed
       const { error: depositError } = await supabase
         .from("deposits")
         .update({ status: "confirmed" })
         .eq("id", deposit.id);
       if (depositError) throw depositError;
 
-      // Step 2: run RPC function
       const { error: rpcError } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
@@ -88,7 +87,9 @@ export const AdminDepositPanel = () => {
       if (rpcError) throw rpcError;
 
       alert(
-        `✅ Deposit confirmed for ${deposit.user_profiles?.email || deposit.user_id}`
+        `✅ Deposit confirmed for ${
+          deposit.user_profiles?.email || deposit.user_id
+        }`
       );
       loadDeposits();
     } catch (err: any) {
@@ -100,7 +101,11 @@ export const AdminDepositPanel = () => {
   };
 
   const handleRejectDeposit = async (deposit: Deposit) => {
-    if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
+    const confirmReject = window.confirm(
+      `Reject deposit of $${deposit.amount}?`
+    );
+    if (!confirmReject) return;
+
     setActionLoading(deposit.id);
 
     try {
@@ -218,4 +223,3 @@ export const AdminDepositPanel = () => {
     </div>
   );
 };
-```
