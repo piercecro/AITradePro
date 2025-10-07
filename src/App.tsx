@@ -9,30 +9,29 @@ import { TradePage } from './pages/TradePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
+import { AdminDepositPanel } from './pages/AdminDepositPanel';
 import { supabase } from './lib/supabase';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<string>(() => {
-    // restore last visited page from localStorage
     return localStorage.getItem('currentPage') || 'dashboard';
   });
   const [verifying, setVerifying] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // ✅ Properly handle Supabase redirect after email verification
+  // ✅ Handle Supabase redirect after email verification
   useEffect(() => {
     const handleAuthRedirect = async () => {
       if (window.location.pathname === '/auth/callback') {
         setVerifying(true);
         try {
-          // Extract and store session from Supabase redirect URL
           const { error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
           if (error) {
             console.error('Auth redirect error:', error.message);
           } else {
-            // ✅ Navigate to dashboard after successful verification
             window.history.replaceState({}, '', '/');
-            window.location.href = '/'; // reloads app to restore authenticated state
+            window.location.href = '/';
             localStorage.setItem('currentPage', 'dashboard');
           }
         } catch (err) {
@@ -49,6 +48,26 @@ const AppContent = () => {
   useEffect(() => {
     localStorage.setItem('currentPage', currentPage);
   }, [currentPage]);
+
+  // ✅ Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user) {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching role:', error.message);
+        } else {
+          setIsAdmin(data?.role === 'admin');
+        }
+      }
+    };
+    checkAdmin();
+  }, [user]);
 
   if (loading || verifying) {
     return (
@@ -76,6 +95,12 @@ const AppContent = () => {
         return <ReferralPage />;
       case 'account':
         return <MyAccountPage />;
+      case 'admin':
+        return isAdmin ? (
+          <AdminDepositPanel />
+        ) : (
+          <div className="text-center text-red-500 p-8">Access Denied: Admins Only</div>
+        );
       default:
         return <DashboardPage />;
     }
@@ -83,7 +108,11 @@ const AppContent = () => {
 
   return (
     <>
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Sidebar
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+        isAdmin={isAdmin} // ✅ Pass admin flag to sidebar
+      />
       <Header onNavigate={setCurrentPage} />
       {renderPage()}
     </>
