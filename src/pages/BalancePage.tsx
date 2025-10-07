@@ -25,6 +25,7 @@ export const BalancePage = () => {
   const [wallets, setWallets] = useState<PlatformWallet[]>([]);
   const [selectedCoin, setSelectedCoin] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
 
   useEffect(() => {
     if (user) loadProfile();
@@ -53,10 +54,27 @@ export const BalancePage = () => {
       minimumFractionDigits: 2,
     }).format(value);
 
-  const handleDeposit = () => {
-    if (selectedPaymentMethod === 'crypto') {
-      // In future, can trigger transaction logging
-      alert(`Please send funds to the ${selectedCoin} address displayed.`);
+  const handleDeposit = async () => {
+    if (!user || !selectedCoin || !depositAmount) return;
+
+    try {
+      const { error } = await supabase.from('deposits').insert({
+        user_id: user.id,
+        amount: parseFloat(depositAmount),
+        payment_method: `${selectedCoin} (${selectedPaymentMethod})`,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      // ✅ After logging, redirect to BitPay
+      window.open('https://bitpay.com', '_blank');
+      setShowDepositModal(false);
+      setDepositAmount('');
+      setSelectedCoin('');
+      setSelectedPaymentMethod('');
+    } catch (err: any) {
+      alert('Deposit error: ' + err.message);
     }
   };
 
@@ -147,28 +165,44 @@ export const BalancePage = () => {
                 </button>
               </div>
 
-              {/* Show coin selection if crypto selected */}
+              {/* Coin selection */}
               {selectedPaymentMethod === 'crypto' && (
-                <div className="mb-6">
-                  <label className="text-gray-400 text-sm mb-2 block">
-                    Select Coin:
-                  </label>
-                  <select
-                    value={selectedCoin}
-                    onChange={(e) => setSelectedCoin(e.target.value)}
-                    className="w-full bg-[#1a1d29] border border-gray-700 text-white p-3 rounded-lg"
-                  >
-                    <option value="">-- Select Coin --</option>
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.coin}>
-                        {w.coin} ({w.network})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <>
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Select Coin:
+                    </label>
+                    <select
+                      value={selectedCoin}
+                      onChange={(e) => setSelectedCoin(e.target.value)}
+                      className="w-full bg-[#1a1d29] border border-gray-700 text-white p-3 rounded-lg focus:border-blue-600 focus:outline-none"
+                    >
+                      <option value="">-- Select Coin --</option>
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.coin}>
+                          {w.coin} ({w.network})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Amount (USD)
+                    </label>
+                    <input
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Enter amount"
+                      min="1"
+                      className="w-full bg-[#1a1d29] text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </>
               )}
 
-              {/* Show wallet if a coin is selected */}
+              {/* Wallet display */}
               {selectedCoin && selectedWallet && (
                 <div className="mb-6 p-4 bg-[#1a1d29] rounded-lg">
                   <div className="text-gray-400 text-sm mb-2">
@@ -189,7 +223,7 @@ export const BalancePage = () => {
                 </button>
                 <button
                   onClick={handleDeposit}
-                  disabled={!selectedPaymentMethod || !selectedCoin}
+                  disabled={!selectedPaymentMethod || !selectedCoin || !depositAmount}
                   className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Proceed
@@ -203,15 +237,9 @@ export const BalancePage = () => {
   );
 };
 
+/* Icons */
 const ArrowUpToLine = ({ size }: { size: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="12" y1="19" x2="12" y2="5" />
     <polyline points="5 12 12 5 19 12" />
     <line x1="5" y1="3" x2="19" y2="3" />
@@ -219,14 +247,7 @@ const ArrowUpToLine = ({ size }: { size: number }) => (
 );
 
 const TrendingUp = ({ size }: { size: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
     <polyline points="17 6 23 6 23 12" />
   </svg>

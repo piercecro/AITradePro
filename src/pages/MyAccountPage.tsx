@@ -20,6 +20,14 @@ interface Deposit {
   created_at: string;
 }
 
+interface PlatformWallet {
+  id: number;
+  coin: string;
+  network: string;
+  address: string;
+  label: string;
+}
+
 export const MyAccountPage = () => {
   const { user } = useAuth();
   const [username, setUsername] = useState('');
@@ -30,12 +38,16 @@ export const MyAccountPage = () => {
   const [cryptoType, setCryptoType] = useState('BTC');
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [wallets, setWallets] = useState<PlatformWallet[]>([]);
+  const [selectedCoin, setSelectedCoin] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
 
   useEffect(() => {
     if (user) {
       loadProfile();
       loadTransactions();
+      loadWallets();
     }
   }, [user]);
 
@@ -49,6 +61,12 @@ export const MyAccountPage = () => {
     if (data) {
       setUsername(data.username || '');
     }
+  };
+
+  const loadWallets = async () => {
+    const { data, error } = await supabase.from('platform_wallets').select('*');
+    if (error) console.error('Error loading wallets:', error);
+    if (data) setWallets(data);
   };
 
   const loadTransactions = async () => {
@@ -92,12 +110,34 @@ export const MyAccountPage = () => {
     }
   };
 
-  const handleDeposit = () => {
-    if (selectedPaymentMethod === 'crypto') {
+  const handleDeposit = async () => {
+    if (!user || !selectedCoin || !depositAmount) return;
+
+    try {
+      const { error } = await supabase.from('deposits').insert({
+        user_id: user.id,
+        amount: parseFloat(depositAmount),
+        payment_method: `${selectedCoin} (${selectedPaymentMethod})`,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      // ✅ Redirect to BitPay after logging deposit
       window.open('https://bitpay.com', '_blank');
+      setShowDepositModal(false);
+      setDepositAmount('');
+      setSelectedCoin('');
+      setSelectedPaymentMethod('');
+      loadTransactions();
+    } catch (err: any) {
+      alert('Deposit error: ' + err.message);
     }
-    setShowDepositModal(false);
   };
+
+  const selectedWallet = wallets.find(
+    (w) => w.coin.toLowerCase() === selectedCoin.toLowerCase()
+  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -159,10 +199,11 @@ export const MyAccountPage = () => {
           </div>
         </div>
 
+        {/* Transactions Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Withdrawals */}
           <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
             <h2 className="text-white text-xl font-semibold mb-6">Withdrawal History</h2>
-
             {withdrawals.length === 0 ? (
               <div className="text-center py-12 text-gray-500">No withdrawals yet</div>
             ) : (
@@ -174,9 +215,7 @@ export const MyAccountPage = () => {
                       {getStatusIcon(withdrawal.status)}
                     </div>
                     <div className="text-gray-400 text-sm mb-1">{withdrawal.crypto_type}</div>
-                    <div className="text-gray-500 text-xs font-mono mb-2 truncate">
-                      {withdrawal.wallet_address}
-                    </div>
+                    <div className="text-gray-500 text-xs font-mono mb-2 truncate">{withdrawal.wallet_address}</div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400 text-xs">{formatDate(withdrawal.created_at)}</span>
                       <span
@@ -197,9 +236,9 @@ export const MyAccountPage = () => {
             )}
           </div>
 
+          {/* Deposits */}
           <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
             <h2 className="text-white text-xl font-semibold mb-6">Deposit History</h2>
-
             {deposits.length === 0 ? (
               <div className="text-center py-12 text-gray-500">No deposits yet</div>
             ) : (
@@ -232,6 +271,7 @@ export const MyAccountPage = () => {
           </div>
         </div>
 
+        {/* Deposit Modal */}
         {showDepositModal && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-[#13151f] rounded-xl p-8 max-w-md w-full border border-gray-800">
@@ -249,38 +289,44 @@ export const MyAccountPage = () => {
                   <div className="text-white font-semibold text-left">Cryptocurrency</div>
                   <div className="text-gray-400 text-sm text-left">BTC, USDT, USDC, LTC, BNB, ETH</div>
                 </button>
-
-                <button
-                  onClick={() => setSelectedPaymentMethod('bank')}
-                  className={`w-full p-4 rounded-lg border-2 transition-colors ${
-                    selectedPaymentMethod === 'bank'
-                      ? 'border-blue-600 bg-blue-600/10'
-                      : 'border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="text-white font-semibold text-left">Bank Transfer</div>
-                  <div className="text-gray-400 text-sm text-left">Direct bank deposit</div>
-                </button>
-
-                <button
-                  onClick={() => setSelectedPaymentMethod('paypal')}
-                  className={`w-full p-4 rounded-lg border-2 transition-colors ${
-                    selectedPaymentMethod === 'paypal'
-                      ? 'border-blue-600 bg-blue-600/10'
-                      : 'border-gray-700 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="text-white font-semibold text-left">PayPal</div>
-                  <div className="text-gray-400 text-sm text-left">Pay with PayPal account</div>
-                </button>
               </div>
 
-              {selectedPaymentMethod && (
-                <div className="mb-6 p-4 bg-[#1a1d29] rounded-lg">
-                  <div className="text-gray-400 text-sm mb-2">Platform Wallet Address:</div>
-                  <div className="text-white text-sm font-mono break-all">
-                    bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+              {selectedPaymentMethod === 'crypto' && (
+                <>
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-sm mb-2 block">Select Coin:</label>
+                    <select
+                      value={selectedCoin}
+                      onChange={(e) => setSelectedCoin(e.target.value)}
+                      className="w-full bg-[#1a1d29] border border-gray-700 text-white p-3 rounded-lg"
+                    >
+                      <option value="">-- Select Coin --</option>
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.coin}>
+                          {w.coin} ({w.network})
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  <div className="mb-4">
+                    <label className="text-gray-400 text-sm mb-2 block">Amount (USD)</label>
+                    <input
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      placeholder="Enter amount"
+                      min="1"
+                      className="w-full bg-[#1a1d29] text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                </>
+              )}
+
+              {selectedCoin && selectedWallet && (
+                <div className="mb-6 p-4 bg-[#1a1d29] rounded-lg">
+                  <div className="text-gray-400 text-sm mb-2">{selectedWallet.label} Address:</div>
+                  <div className="text-white text-sm font-mono break-all">{selectedWallet.address}</div>
                 </div>
               )}
 
@@ -293,7 +339,7 @@ export const MyAccountPage = () => {
                 </button>
                 <button
                   onClick={handleDeposit}
-                  disabled={!selectedPaymentMethod}
+                  disabled={!selectedPaymentMethod || !selectedCoin || !depositAmount}
                   className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Proceed
@@ -303,6 +349,7 @@ export const MyAccountPage = () => {
           </div>
         )}
 
+        {/* Withdraw Modal */}
         {showWithdrawModal && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-[#13151f] rounded-xl p-8 max-w-md w-full border border-gray-800">
