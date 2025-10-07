@@ -27,47 +27,53 @@ export const AdminDepositPanel = () => {
   const loadDeposits = async () => {
     setLoading(true);
     try {
+      console.log("🔄 Fetching deposits...");
+
+      // ✅ Try with relationship first
       let { data, error } = await supabase
         .from("deposits")
         .select("*, user_profiles(username, email)")
         .order("created_at", { ascending: false });
 
+      // ✅ Fallback if relationship missing
       if (error && error.message.includes("relationship")) {
-        console.warn("⚠️ Relationship missing. Using manual join...");
-        const { data: raw, error: err2 } = await supabase
+        console.warn("⚠️ Relationship not found. Using fallback query.");
+        const { data: rawDeposits, error: fallbackError } = await supabase
           .from("deposits")
           .select("*")
           .order("created_at", { ascending: false });
-        if (err2) throw err2;
 
+        if (fallbackError) throw fallbackError;
+
+        // Fetch user info manually for each deposit
         const withUsers = await Promise.all(
-          (raw || []).map(async (d) => {
-            const { data: user } = await supabase
+          (rawDeposits || []).map(async (dep) => {
+            const { data: userProfile } = await supabase
               .from("user_profiles")
               .select("username, email")
-              .eq("id", d.user_id)
+              .eq("id", dep.user_id)
               .maybeSingle();
-            return { ...d, user_profiles: user };
+            return { ...dep, user_profiles: userProfile };
           })
         );
         data = withUsers;
-      } else if (error) throw error;
+      } else if (error) {
+        throw error;
+      }
 
+      console.log("✅ Deposits fetched:", data);
       setDeposits(data || []);
     } catch (err: any) {
+      console.error("❌ Error loading deposits:", err.message);
       alert("Error loading deposits: " + err.message);
-      console.error("❌ Load error:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Confirm deposit and update balance
   const handleConfirmDeposit = async (deposit: Deposit) => {
-    const confirmAction = window.confirm(
-      `Confirm deposit of $${deposit.amount}?`
-    );
-    if (!confirmAction) return;
-
+    if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
@@ -75,37 +81,35 @@ export const AdminDepositPanel = () => {
         .from("deposits")
         .update({ status: "confirmed" })
         .eq("id", deposit.id);
+
       if (depositError) throw depositError;
 
-      const { error: rpcError } = await supabase.rpc(
+      const { error: balanceError } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
           user_id_input: deposit.user_id,
           deposit_amount: deposit.amount,
         }
       );
-      if (rpcError) throw rpcError;
+
+      if (balanceError) throw balanceError;
 
       alert(
         `✅ Deposit confirmed for ${
-          deposit.user_profiles?.email || deposit.user_id
-        }`
+          deposit.user_profiles?.email || "User"
+        } ($${deposit.amount})`
       );
       loadDeposits();
     } catch (err: any) {
+      console.error("❌ Error confirming deposit:", err.message);
       alert("Error confirming deposit: " + err.message);
-      console.error("❌ Confirm error:", err);
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleRejectDeposit = async (deposit: Deposit) => {
-    const confirmReject = window.confirm(
-      `Reject deposit of $${deposit.amount}?`
-    );
-    if (!confirmReject) return;
-
+    if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
@@ -113,13 +117,14 @@ export const AdminDepositPanel = () => {
         .from("deposits")
         .update({ status: "rejected" })
         .eq("id", deposit.id);
+
       if (error) throw error;
 
       alert(`❌ Deposit rejected for ${deposit.user_profiles?.email || "User"}`);
       loadDeposits();
     } catch (err: any) {
+      console.error("❌ Error rejecting deposit:", err.message);
       alert("Error rejecting deposit: " + err.message);
-      console.error("❌ Reject error:", err);
     } finally {
       setActionLoading(null);
     }
