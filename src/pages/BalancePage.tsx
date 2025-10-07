@@ -32,12 +32,40 @@ export const BalancePage = () => {
     loadWallets();
   }, [user]);
 
+  // ✅ Add real-time listener to auto-refresh when admin updates user profile
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('user-profile-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('🔄 Detected profile update:', payload);
+          loadProfile(); // reload latest profile
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const loadProfile = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', user?.id)
       .maybeSingle();
+
+    if (error) console.error('Error loading profile:', error);
     if (data) setProfile(data);
   };
 
@@ -67,7 +95,7 @@ export const BalancePage = () => {
 
       if (error) throw error;
 
-      // ✅ After logging, redirect to BitPay
+      // ✅ Redirect to crypto payment
       window.open('https://bitpay.com', '_blank');
       setShowDepositModal(false);
       setDepositAmount('');
@@ -165,7 +193,6 @@ export const BalancePage = () => {
                 </button>
               </div>
 
-              {/* Coin selection */}
               {selectedPaymentMethod === 'crypto' && (
                 <>
                   <div className="mb-4">
@@ -202,7 +229,6 @@ export const BalancePage = () => {
                 </>
               )}
 
-              {/* Wallet display */}
               {selectedCoin && selectedWallet && (
                 <div className="mb-6 p-4 bg-[#1a1d29] rounded-lg">
                   <div className="text-gray-400 text-sm mb-2">
