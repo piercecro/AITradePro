@@ -1,4 +1,3 @@
-// src/pages/AdminDepositPanel.tsx
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -12,7 +11,6 @@ interface Deposit {
   created_at: string;
   user_profiles?: {
     username: string;
-    email: string;
   };
 }
 
@@ -25,19 +23,20 @@ export const AdminDepositPanel = () => {
     loadDeposits();
   }, []);
 
-  // ✅ Load all deposits
   const loadDeposits = async () => {
     setLoading(true);
     try {
       console.log("🔄 Fetching deposits...");
 
+      // ✅ Try relationship query first
       let { data, error } = await supabase
         .from("deposits")
-        .select("*, user_profiles(username, email)")
+        .select("*, user_profiles(username)")
         .order("created_at", { ascending: false });
 
+      // ✅ Fallback if relationship not found
       if (error && error.message.includes("relationship")) {
-        console.warn("⚠️ Relationship not found, using fallback query.");
+        console.warn("⚠️ Relationship not found. Using fallback query.");
         const { data: rawDeposits, error: fallbackError } = await supabase
           .from("deposits")
           .select("*")
@@ -45,18 +44,17 @@ export const AdminDepositPanel = () => {
 
         if (fallbackError) throw fallbackError;
 
-        // fetch users manually
+        // manually fetch user info
         const withUsers = await Promise.all(
           (rawDeposits || []).map(async (dep) => {
             const { data: userProfile } = await supabase
               .from("user_profiles")
-              .select("username, email")
+              .select("username")
               .eq("id", dep.user_id)
               .maybeSingle();
             return { ...dep, user_profiles: userProfile };
           })
         );
-
         data = withUsers;
       } else if (error) {
         throw error;
@@ -72,27 +70,22 @@ export const AdminDepositPanel = () => {
     }
   };
 
-  // ✅ Confirm deposit and update user balance
+  // ✅ Confirm deposit and call RPC
   const handleConfirmDeposit = async (deposit: Deposit) => {
-    const confirmAction = window.confirm(
-      `Confirm deposit of $${deposit.amount}?`
-    );
-    if (!confirmAction) return;
-
+    if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
-      // 1️⃣ Update deposit status
+      // ✅ Update deposit status
       const { error: depositError } = await supabase
         .from("deposits")
         .update({ status: "confirmed" })
         .eq("id", deposit.id);
 
-      if (depositError)
-        throw new Error("Deposit update failed: " + depositError.message);
+      if (depositError) throw depositError;
 
-      // 2️⃣ Run RPC to update user balances
-      const { data, error: rpcError } = await supabase.rpc(
+      // ✅ Update user balance and total deposited
+      const { error: balanceError, data: rpcResult } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
           user_id_input: deposit.user_id,
@@ -100,21 +93,18 @@ export const AdminDepositPanel = () => {
         }
       );
 
-      if (rpcError) {
-        console.error("RPC ERROR:", rpcError);
-        throw new Error("RPC failed: " + rpcError.message);
-      }
+      console.log("RPC result:", rpcResult);
 
-      console.log("RPC success result:", data);
+      if (balanceError) throw balanceError;
+
       alert(
         `✅ Deposit confirmed for ${
-          deposit.user_profiles?.email || deposit.user_id
+          deposit.user_profiles?.username || deposit.user_id
         } ($${deposit.amount})`
       );
-
-      loadDeposits();
+      await loadDeposits();
     } catch (err: any) {
-      console.error("❌ Confirm deposit error:", err);
+      console.error("❌ Error confirming deposit:", err.message);
       alert("Error confirming deposit: " + err.message);
     } finally {
       setActionLoading(null);
@@ -123,11 +113,7 @@ export const AdminDepositPanel = () => {
 
   // ❌ Reject deposit
   const handleRejectDeposit = async (deposit: Deposit) => {
-    const rejectAction = window.confirm(
-      `Reject deposit of $${deposit.amount}?`
-    );
-    if (!rejectAction) return;
-
+    if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
@@ -136,9 +122,9 @@ export const AdminDepositPanel = () => {
         .update({ status: "rejected" })
         .eq("id", deposit.id);
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
 
-      alert(`❌ Deposit rejected for ${deposit.user_profiles?.email || "User"}`);
+      alert(`❌ Deposit rejected for ${deposit.user_profiles?.username || deposit.user_id}`);
       loadDeposits();
     } catch (err: any) {
       console.error("❌ Error rejecting deposit:", err.message);
@@ -178,7 +164,7 @@ export const AdminDepositPanel = () => {
                   <div className="text-white font-semibold">
                     {deposit.user_profiles?.username || "User"}{" "}
                     <span className="text-gray-400 text-sm">
-                      ({deposit.user_profiles?.email || deposit.user_id})
+                      ({deposit.user_id})
                     </span>
                   </div>
                   <div className="text-gray-400 text-sm">
