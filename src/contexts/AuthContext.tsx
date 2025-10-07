@@ -17,13 +17,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load the initial session
+    // Load initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth state changes
+    // Listen for login/logout changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -39,12 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // Pass username into user_metadata so Supabase trigger can use it
+    // Send username as metadata — optional but nice to have
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username }, // 👈 sent to auth.users.raw_user_meta_data
+        data: { username },
       },
     });
     if (error) throw error;
