@@ -17,6 +17,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // ✅ Handle email confirmation redirects (the /auth/callback page)
+    const handleRedirect = async () => {
+      const hashParams = window.location.hash;
+      if (hashParams.includes('access_token')) {
+        const { data, error } = await supabase.auth.getSessionFromUrl({
+          storeSession: true,
+        });
+        if (error) console.error('Error handling redirect:', error.message);
+        else setUser(data.session?.user ?? null);
+
+        // Clean up URL after processing
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    handleRedirect();
+
     // Load initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -39,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // ✅ Send explicit redirect URL to fix "requested path is invalid"
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
     const { error } = await supabase.auth.signUp({
@@ -47,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         data: { username },
-        emailRedirectTo: redirectUrl,
+        emailRedirectTo: redirectUrl, // ✅ ensures Supabase sends to correct callback
       },
     });
 

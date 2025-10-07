@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EyeOff, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,12 +9,14 @@ export const AuthPage = () => {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
@@ -22,6 +24,7 @@ export const AuthPage = () => {
         await signIn(email, password);
       } else {
         await signUp(email, password, username);
+        setMessage('✅ Signup successful! Please check your email to verify your account.');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -29,6 +32,14 @@ export const AuthPage = () => {
       setLoading(false);
     }
   };
+
+  // ✅ Auto-hide message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0c10] via-[#1a2332] to-[#0f1a2e] flex items-center justify-center p-4">
@@ -54,6 +65,12 @@ export const AuthPage = () => {
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
               {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm transition-opacity duration-500">
+              {message}
             </div>
           )}
 
@@ -126,6 +143,7 @@ export const AuthPage = () => {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError('');
+                setMessage('');
               }}
               className="text-blue-500 hover:underline font-medium"
             >
@@ -205,15 +223,12 @@ const GoogleIcon = () => (
 
 const AppleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
   </svg>
 );
 
 const AppStoreButton = () => (
-  <a
-    href="#"
-    className="bg-black text-white rounded-lg px-4 py-2 flex items-center space-x-2 hover:bg-gray-900 transition-colors"
-  >
+  <a href="#" className="bg-black text-white rounded-lg px-4 py-2 flex items-center space-x-2 hover:bg-gray-900 transition-colors">
     <AppleIcon />
     <div className="text-left">
       <div className="text-[10px] opacity-80">Download on the</div>
@@ -223,10 +238,7 @@ const AppStoreButton = () => (
 );
 
 const GooglePlayButton = () => (
-  <a
-    href="#"
-    className="bg-black text-white rounded-lg px-4 py-2 flex items-center space-x-2 hover:bg-gray-900 transition-colors"
-  >
+  <a href="#" className="bg-black text-white rounded-lg px-4 py-2 flex items-center space-x-2 hover:bg-gray-900 transition-colors">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
       <path d="M3 20.5v-17c0-.59.34-1.11.84-1.35L13.69 12l-9.85 9.85c-.5-.24-.84-.76-.84-1.35zm13.81-5.67l2.96 1.69c.4.23.65.66.65 1.13 0 .47-.25.9-.65 1.13l-2.96 1.69-3.44-3.44 3.44-2.2zm-9.75-9.75L13.69 12l-6.63 6.92L3.06 5.08zm10.88 6.17L13.69 12l3.25 3.25 2.96-1.69c.4-.23.65-.66.65-1.13 0-.47-.25-.9-.65-1.13l-2.96-1.69z" />
     </svg>

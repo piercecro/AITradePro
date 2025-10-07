@@ -19,14 +19,27 @@ const AppContent = () => {
   });
   const [verifying, setVerifying] = useState(false);
 
-  // ✅ Handle Supabase redirect after email verification
+  // ✅ Properly handle Supabase redirect after email verification
   useEffect(() => {
     const handleAuthRedirect = async () => {
       if (window.location.pathname === '/auth/callback') {
         setVerifying(true);
-        await supabase.auth.getSession();
-        window.history.replaceState({}, '', '/');
-        setVerifying(false);
+        try {
+          // Extract and store session from Supabase redirect URL
+          const { error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+          if (error) {
+            console.error('Auth redirect error:', error.message);
+          } else {
+            // ✅ Navigate to dashboard after successful verification
+            window.history.replaceState({}, '', '/');
+            window.location.href = '/'; // reloads app to restore authenticated state
+            localStorage.setItem('currentPage', 'dashboard');
+          }
+        } catch (err) {
+          console.error('Unexpected auth redirect error:', err);
+        } finally {
+          setVerifying(false);
+        }
       }
     };
     handleAuthRedirect();

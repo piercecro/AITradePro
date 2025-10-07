@@ -7,9 +7,22 @@ export const AuthCallback = () => {
 
   useEffect(() => {
     const handleRedirect = async () => {
-      await supabase.auth.getSession();
-      navigate('/dashboard');
+      try {
+        // ✅ Handle token exchange from Supabase redirect
+        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+        if (error) {
+          console.error('Error exchanging session:', error.message);
+        } else {
+          console.log('Session established for user:', data.session?.user?.email);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        // ✅ Redirect user to dashboard after processing
+        navigate('/dashboard');
+      }
     };
+
     handleRedirect();
   }, [navigate]);
 
