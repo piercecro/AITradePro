@@ -21,84 +21,84 @@ export const AdminDepositPanel = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // ✅ Load all deposits when component mounts
   useEffect(() => {
     loadDeposits();
   }, []);
 
+  // ✅ Load deposits with fallback for missing relationship
   const loadDeposits = async () => {
     setLoading(true);
     try {
-      console.log("🔄 Fetching deposits...");
-
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("deposits")
         .select("*, user_profiles(username, email)")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("❌ Error loading deposits:", error.message);
-        alert("Error loading deposits: " + error.message);
-      } else {
-        console.log("✅ Deposits fetched:", data);
-        setDeposits(data || []);
-      }
+      // fallback: manually join if relationship missing
+      if (error && error.message.includes("relationship")) {
+        console.warn("⚠️ Relationship missing. Using manual join...");
+        const { data: raw, error: err2 } = await supabase
+          .from("deposits")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (err2) throw err2;
+        const withUsers = await Promise.all(
+          (raw || []).map(async (d) => {
+            const { data: user } = await supabase
+              .from("user_profiles")
+              .select("username, email")
+              .eq("id", d.user_id)
+              .maybeSingle();
+            return { ...d, user_profiles: user };
+          })
+        );
+        data = withUsers;
+      } else if (error) throw error;
+
+      setDeposits(data || []);
     } catch (err: any) {
-      console.error("❌ Unexpected error loading deposits:", err.message);
       alert("Error loading deposits: " + err.message);
+      console.error("❌ Load error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Confirm deposit and update user’s balance
+  // ✅ Confirm deposit and call RPC to update user balance
   const handleConfirmDeposit = async (deposit: Deposit) => {
     if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
-      // Step 1: Update deposit status
+      // Step 1: mark deposit confirmed
       const { error: depositError } = await supabase
         .from("deposits")
         .update({ status: "confirmed" })
         .eq("id", deposit.id);
-
       if (depositError) throw depositError;
 
-      // Step 2: Update user balance and total deposited via RPC
-      const { data: rpcResult, error: profileError } = await supabase.rpc(
+      // Step 2: run RPC function
+      const { error: rpcError } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
           user_id_input: deposit.user_id,
           deposit_amount: deposit.amount,
         }
       );
+      if (rpcError) throw rpcError;
 
-      if (profileError) {
-        console.error("RPC Error:", profileError);
-        throw profileError;
-      } else {
-        console.log("RPC Success:", rpcResult);
-      }
-
-      // Step 3: Force refresh of user profile cache
-      await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", deposit.user_id)
-        .single();
-
-      alert(`✅ Deposit confirmed for ${deposit.user_profiles?.email || "User"}`);
+      alert(
+        `✅ Deposit confirmed for ${deposit.user_profiles?.email || deposit.user_id}`
+      );
       loadDeposits();
     } catch (err: any) {
-      console.error("❌ Error confirming deposit:", err.message);
       alert("Error confirming deposit: " + err.message);
+      console.error("❌ Confirm error:", err);
     } finally {
       setActionLoading(null);
     }
   };
 
-  // ❌ Reject deposit
   const handleRejectDeposit = async (deposit: Deposit) => {
     if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
@@ -108,14 +108,13 @@ export const AdminDepositPanel = () => {
         .from("deposits")
         .update({ status: "rejected" })
         .eq("id", deposit.id);
-
       if (error) throw error;
 
       alert(`❌ Deposit rejected for ${deposit.user_profiles?.email || "User"}`);
       loadDeposits();
     } catch (err: any) {
-      console.error("❌ Error rejecting deposit:", err.message);
       alert("Error rejecting deposit: " + err.message);
+      console.error("❌ Reject error:", err);
     } finally {
       setActionLoading(null);
     }
@@ -151,7 +150,7 @@ export const AdminDepositPanel = () => {
                   <div className="text-white font-semibold">
                     {deposit.user_profiles?.username || "User"}{" "}
                     <span className="text-gray-400 text-sm">
-                      ({deposit.user_profiles?.email})
+                      ({deposit.user_profiles?.email || deposit.user_id})
                     </span>
                   </div>
                   <div className="text-gray-400 text-sm">
