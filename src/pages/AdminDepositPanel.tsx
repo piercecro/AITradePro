@@ -9,9 +9,8 @@ interface Deposit {
   payment_method: string;
   status: string;
   created_at: string;
-  user_profiles?: {
-    username: string;
-  };
+  username?: string;
+  email?: string;
 }
 
 export const AdminDepositPanel = () => {
@@ -23,43 +22,18 @@ export const AdminDepositPanel = () => {
     loadDeposits();
   }, []);
 
+  // ✅ Load deposits from new view (joins user_profiles + auth.users)
   const loadDeposits = async () => {
     setLoading(true);
     try {
-      console.log("🔄 Fetching deposits...");
+      console.log("🔄 Fetching deposits_with_user view...");
 
-      // ✅ Try relationship query first
-      let { data, error } = await supabase
-        .from("deposits")
-        .select("*, user_profiles(username)")
+      const { data, error } = await supabase
+        .from("deposits_with_user")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      // ✅ Fallback if relationship not found
-      if (error && error.message.includes("relationship")) {
-        console.warn("⚠️ Relationship not found. Using fallback query.");
-        const { data: rawDeposits, error: fallbackError } = await supabase
-          .from("deposits")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (fallbackError) throw fallbackError;
-
-        // manually fetch user info
-        const withUsers = await Promise.all(
-          (rawDeposits || []).map(async (dep) => {
-            const { data: userProfile } = await supabase
-              .from("user_profiles")
-              .select("username")
-              .eq("id", dep.user_id)
-              .maybeSingle();
-            return { ...dep, user_profiles: userProfile };
-          })
-        );
-        data = withUsers;
-      } else if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       console.log("✅ Deposits fetched:", data);
       setDeposits(data || []);
     } catch (err: any) {
@@ -70,13 +44,13 @@ export const AdminDepositPanel = () => {
     }
   };
 
-  // ✅ Confirm deposit and call RPC
+  // ✅ Confirm deposit and update balance via RPC
   const handleConfirmDeposit = async (deposit: Deposit) => {
     if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
     setActionLoading(deposit.id);
 
     try {
-      // ✅ Update deposit status
+      // 1️⃣ Update deposit status
       const { error: depositError } = await supabase
         .from("deposits")
         .update({ status: "confirmed" })
@@ -84,8 +58,8 @@ export const AdminDepositPanel = () => {
 
       if (depositError) throw depositError;
 
-      // ✅ Update user balance and total deposited
-      const { error: balanceError, data: rpcResult } = await supabase.rpc(
+      // 2️⃣ Call RPC to update balance
+      const { error: balanceError } = await supabase.rpc(
         "update_user_balance_after_deposit",
         {
           user_id_input: deposit.user_id,
@@ -93,13 +67,11 @@ export const AdminDepositPanel = () => {
         }
       );
 
-      console.log("RPC result:", rpcResult);
-
       if (balanceError) throw balanceError;
 
       alert(
         `✅ Deposit confirmed for ${
-          deposit.user_profiles?.username || deposit.user_id
+          deposit.email || "User"
         } ($${deposit.amount})`
       );
       await loadDeposits();
@@ -124,8 +96,8 @@ export const AdminDepositPanel = () => {
 
       if (error) throw error;
 
-      alert(`❌ Deposit rejected for ${deposit.user_profiles?.username || deposit.user_id}`);
-      loadDeposits();
+      alert(`❌ Deposit rejected for ${deposit.email || "User"}`);
+      await loadDeposits();
     } catch (err: any) {
       console.error("❌ Error rejecting deposit:", err.message);
       alert("Error rejecting deposit: " + err.message);
@@ -162,9 +134,9 @@ export const AdminDepositPanel = () => {
               >
                 <div>
                   <div className="text-white font-semibold">
-                    {deposit.user_profiles?.username || "User"}{" "}
+                    {deposit.username || "User"}{" "}
                     <span className="text-gray-400 text-sm">
-                      ({deposit.user_id})
+                      ({deposit.email || deposit.user_id})
                     </span>
                   </div>
                   <div className="text-gray-400 text-sm">
