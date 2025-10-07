@@ -39,14 +39,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // Send username as metadata — optional but nice to have
+    // ✅ Send explicit redirect URL to fix "requested path is invalid"
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { username },
+        emailRedirectTo: redirectUrl,
       },
     });
+
     if (error) throw error;
   };
 

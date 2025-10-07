@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Sidebar } from './components/Sidebar';
@@ -9,12 +9,35 @@ import { TradePage } from './pages/TradePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
+import { supabase } from './lib/supabase';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>(() => {
+    // restore last visited page from localStorage
+    return localStorage.getItem('currentPage') || 'dashboard';
+  });
+  const [verifying, setVerifying] = useState(false);
 
-  if (loading) {
+  // ✅ Handle Supabase redirect after email verification
+  useEffect(() => {
+    const handleAuthRedirect = async () => {
+      if (window.location.pathname === '/auth/callback') {
+        setVerifying(true);
+        await supabase.auth.getSession();
+        window.history.replaceState({}, '', '/');
+        setVerifying(false);
+      }
+    };
+    handleAuthRedirect();
+  }, []);
+
+  // ✅ Save current page to localStorage
+  useEffect(() => {
+    localStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
+
+  if (loading || verifying) {
     return (
       <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
