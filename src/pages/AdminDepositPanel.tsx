@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Clock, RefreshCcw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 interface Deposit {
   id: string;
@@ -9,175 +9,199 @@ interface Deposit {
   payment_method: string;
   status: string;
   created_at: string;
-  user_email?: string;
+  user_profiles?: {
+    username: string;
+    email: string;
+  };
 }
 
 export const AdminDepositPanel = () => {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Fetch deposits with user emails
-  const fetchDeposits = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('deposits')
-      .select(`
-        id,
-        user_id,
-        amount,
-        payment_method,
-        status,
-        created_at,
-        user_profiles ( email )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching deposits:', error);
-      setLoading(false);
-      return;
-    }
-
-    // Flatten user email from nested object
-    const formatted = data.map((d: any) => ({
-      ...d,
-      user_email: d.user_profiles?.email || 'Unknown',
-    }));
-
-    setDeposits(formatted);
-    setLoading(false);
-  };
-
+  // ✅ Load all deposits when component mounts
   useEffect(() => {
-    fetchDeposits();
+    loadDeposits();
   }, []);
 
-  // Handle status updates (trigger fires automatically)
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('deposits')
-      .update({ status: newStatus })
-      .eq('id', id);
+  const loadDeposits = async () => {
+    setLoading(true);
+    try {
+      console.log("🔄 Fetching deposits...");
 
-    if (error) {
-      alert('Error updating status: ' + error.message);
-    } else {
-      alert(`Deposit marked as ${newStatus.toUpperCase()}.`);
-      fetchDeposits(); // refresh list
+      const { data, error } = await supabase
+        .from("deposits")
+        .select("*, user_profiles(username, email)")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("❌ Error loading deposits:", error.message);
+        alert("Error loading deposits: " + error.message);
+      } else {
+        console.log("✅ Deposits fetched:", data);
+        setDeposits(data || []);
+      }
+    } catch (err: any) {
+      console.error("❌ Unexpected error loading deposits:", err.message);
+      alert("Error loading deposits: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <CheckCircle size={20} className="text-green-500" />;
-      case 'pending':
-        return <Clock size={20} className="text-yellow-500" />;
-      case 'rejected':
-        return <XCircle size={20} className="text-red-500" />;
-      default:
-        return <Clock size={20} className="text-gray-500" />;
+  // ✅ Confirm deposit and update user’s balance
+  const handleConfirmDeposit = async (deposit: Deposit) => {
+    if (!window.confirm(`Confirm deposit of $${deposit.amount}?`)) return;
+    setActionLoading(deposit.id);
+
+    try {
+      // Update deposit status
+      const { error: depositError } = await supabase
+        .from("deposits")
+        .update({ status: "confirmed" })
+        .eq("id", deposit.id);
+
+      if (depositError) throw depositError;
+
+      // Update user balance and total deposited
+      const { error: profileError } = await supabase.rpc(
+        "update_user_balance_after_deposit",
+        {
+          user_id_input: deposit.user_id,
+          deposit_amount: deposit.amount,
+        }
+      );
+
+      if (profileError) throw profileError;
+
+      alert(`✅ Deposit confirmed for ${deposit.user_profiles?.email || "User"}`);
+      loadDeposits();
+    } catch (err: any) {
+      console.error("❌ Error confirming deposit:", err.message);
+      alert("Error confirming deposit: " + err.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleString();
+  // ❌ Reject deposit
+  const handleRejectDeposit = async (deposit: Deposit) => {
+    if (!window.confirm(`Reject deposit of $${deposit.amount}?`)) return;
+    setActionLoading(deposit.id);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value);
+    try {
+      const { error } = await supabase
+        .from("deposits")
+        .update({ status: "rejected" })
+        .eq("id", deposit.id);
+
+      if (error) throw error;
+
+      alert(`❌ Deposit rejected for ${deposit.user_profiles?.email || "User"}`);
+      loadDeposits();
+    } catch (err: any) {
+      console.error("❌ Error rejecting deposit:", err.message);
+      alert("Error rejecting deposit: " + err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
+        <Loader2 size={32} className="text-white animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0c10] pl-16 pt-16">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-white text-3xl font-bold">Admin Deposit Panel</h1>
-          <button
-            onClick={fetchDeposits}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-          >
-            <RefreshCcw size={18} />
-            <span>Refresh</span>
-          </button>
-        </div>
+      <div className="max-w-6xl mx-auto p-6">
+        <h1 className="text-white text-3xl font-bold mb-8">
+          Admin Deposit Panel
+        </h1>
 
-        <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
-          {loading ? (
-            <div className="text-center text-gray-400">Loading deposits...</div>
-          ) : deposits.length === 0 ? (
-            <div className="text-center text-gray-500 py-12">No deposits found.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm text-gray-300">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="py-3 px-4">User Email</th>
-                    <th className="py-3 px-4">Amount</th>
-                    <th className="py-3 px-4">Payment Method</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deposits.map((deposit) => (
-                    <tr
-                      key={deposit.id}
-                      className="border-b border-gray-800 hover:bg-[#1a1d29]"
-                    >
-                      <td className="py-3 px-4">{deposit.user_email}</td>
-                      <td className="py-3 px-4">{formatCurrency(deposit.amount)}</td>
-                      <td className="py-3 px-4">{deposit.payment_method}</td>
-                      <td className="py-3 px-4 flex items-center space-x-2">
-                        {getStatusIcon(deposit.status)}
-                        <span
-                          className={`${
-                            deposit.status === 'confirmed'
-                              ? 'text-green-500'
-                              : deposit.status === 'pending'
-                              ? 'text-yellow-500'
-                              : 'text-red-500'
-                          } font-medium capitalize`}
-                        >
-                          {deposit.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">{formatDate(deposit.created_at)}</td>
-                      <td className="py-3 px-4 text-right space-x-2">
-                        {deposit.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() =>
-                                handleUpdateStatus(deposit.id, 'confirmed')
-                              }
-                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-xs"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleUpdateStatus(deposit.id, 'rejected')
-                              }
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs"
-                            >
-                              Reject
-                            </button>
-                          </>
+        {deposits.length === 0 ? (
+          <div className="text-gray-400 text-center py-12">
+            No deposits found.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {deposits.map((deposit) => (
+              <div
+                key={deposit.id}
+                className="bg-[#13151f] p-6 rounded-xl border border-gray-800 flex justify-between items-center"
+              >
+                <div>
+                  <div className="text-white font-semibold">
+                    {deposit.user_profiles?.username || "User"}{" "}
+                    <span className="text-gray-400 text-sm">
+                      ({deposit.user_profiles?.email})
+                    </span>
+                  </div>
+                  <div className="text-gray-400 text-sm">
+                    Amount:{" "}
+                    <span className="text-green-400 font-semibold">
+                      ${deposit.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-gray-400 text-sm">
+                    Method: {deposit.payment_method}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    {new Date(deposit.created_at).toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <span
+                    className={`px-3 py-1 text-xs rounded-full capitalize font-semibold ${
+                      deposit.status === "pending"
+                        ? "bg-yellow-500/10 text-yellow-500"
+                        : deposit.status === "confirmed"
+                        ? "bg-green-500/10 text-green-500"
+                        : "bg-red-500/10 text-red-500"
+                    }`}
+                  >
+                    {deposit.status}
+                  </span>
+
+                  {deposit.status === "pending" && (
+                    <>
+                      <button
+                        onClick={() => handleConfirmDeposit(deposit)}
+                        disabled={actionLoading === deposit.id}
+                        className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                        title="Confirm"
+                      >
+                        {actionLoading === deposit.id ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <CheckCircle size={18} />
                         )}
-                        {deposit.status !== 'pending' && (
-                          <span className="text-gray-500 text-xs">No action</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRejectDeposit(deposit)}
+                        disabled={actionLoading === deposit.id}
+                        className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+                        title="Reject"
+                      >
+                        {actionLoading === deposit.id ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <XCircle size={18} />
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
