@@ -16,11 +16,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ ADDED: success message + visibility states
+  // ✅ Success message states
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
 
-  // --- ALL your original code below remains exactly the same ---
+  // --- Original code unchanged ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
     const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
@@ -162,9 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ✅ UPDATED: signUp — added toast trigger (no logic removed)
+  // ✅ Updated signUp (spinner removed, success toast added)
   const signUp = async (email: string, password: string, username: string) => {
-    setLoading(true);
     setSuccessMessage(null);
     try {
       const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -179,6 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
+      // ✅ Show success message toast
       setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
       setShowMessage(true);
 
@@ -189,8 +189,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }, 5000);
     } catch (err: any) {
       console.error('Signup error:', err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -207,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <>
-      {/* ✅ Tailwind toast popup (bottom-right, fade + OK button) */}
+      {/* ✅ Tailwind-style success toast (bottom-right) */}
       {successMessage && (
         <div
           className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
