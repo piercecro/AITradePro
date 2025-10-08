@@ -31,7 +31,7 @@ export const DashboardPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
-  const [showChat, setShowChat] = useState(false); // Live chat toggle
+  const [showChat, setShowChat] = useState(false); // ✅ Live chat toggle
 
   useEffect(() => {
     if (user) {
@@ -235,7 +235,7 @@ export const DashboardPage = () => {
       {/* --- Live Chat Support Icon --- */}
       <div className="fixed bottom-6 right-6 z-50">
         <button
-          onClick={() => setShowChat((prev) => !prev)}
+          onClick={() => setShowChat(prev => !prev)}
           className="bg-blue-600 text-white w-16 h-16 flex items-center justify-center rounded-full shadow-lg hover:bg-blue-700 transition"
           title="Live Support"
         >
