@@ -27,11 +27,28 @@ interface Deposit {
 }
 
 export const DashboardPage = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [showChat, setShowChat] = useState(false); // ✅ Live chat toggle
+
+  // --- Guard for loading or unauthenticated ---
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">You must be logged in to view the dashboard.</div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (user) {
@@ -220,16 +237,14 @@ export const DashboardPage = () => {
           <h2 className="text-3xl font-bold mb-6 text-center text-white">About Us</h2>
           <p className="text-lg mb-4 text-gray-200 text-justify">
             At AITradePro, we empower individuals to take control of their financial future by providing advanced tools and insights for trading and investing across multiple markets. Our platform specializes in 
-            <span className="text-blue-400 font-semibold"> cryptocurrencies</span>, 
-            <span className="text-green-400 font-semibold"> forex</span>, 
-            <span className="text-yellow-400 font-semibold"> metals</span>, and 
-            <span className="text-purple-400 font-semibold"> indices</span>.
+            <strong> crypto, forex, metals, and indices</strong>, enabling users to diversify their portfolios and maximize potential returns.
           </p>
           <p className="text-lg mb-4 text-gray-200 text-justify">
-            Whether you are a beginner or an experienced trader, AITradePro offers intuitive dashboards, real-time analytics, and risk management tools to help you make informed investment decisions. We focus on creating a safe, reliable, and transparent environment where your portfolio can grow steadily.
+            We offer detailed analytics, live market charts, and automated insights to help both beginners and experienced traders make informed decisions. Our mission is to make professional-grade trading accessible to everyone, 
+            building wealth one step at a time.
           </p>
           <p className="text-lg text-gray-200 text-justify">
-            Our mission is to bridge the gap between complex financial markets and everyday investors. By providing professional-grade insights and actionable strategies, we help our users build wealth efficiently across cryptocurrencies, forex, metals, and indices. Join AITradePro today and start your journey toward financial independence.
+            With our dedicated support and educational resources, AITradePro ensures users feel confident in their investment journey while navigating the dynamic world of financial markets.
           </p>
         </section>
       </div>
@@ -258,23 +273,11 @@ export const DashboardPage = () => {
         </button>
 
         {showChat && (
-          <div className="absolute bottom-20 right-0 w-80 bg-[#13151f] rounded-xl shadow-xl p-4 flex flex-col">
+          <div className="absolute bottom-20 right-0 w-80 bg-[#13151f] rounded-xl shadow-xl p-4">
             <h3 className="text-white font-bold mb-2">Live Support</h3>
-
-            {/* Chat messages container */}
-            <div className="h-40 overflow-y-auto text-gray-200 mb-2 flex flex-col gap-2">
-              <div className="bg-gray-800 p-2 rounded-lg self-start">
-                👋 Hi! Welcome to AITradePro support. How can we assist you today?
-              </div>
-              <div className="bg-blue-600 p-2 rounded-lg self-end text-white">
-                Hello! I want to learn more about crypto trading.
-              </div>
-              <div className="bg-gray-800 p-2 rounded-lg self-start">
-                Absolutely! We provide tools and insights for crypto, forex, metals, and indices to help you trade confidently.
-              </div>
+            <div className="h-40 overflow-y-auto text-gray-200 mb-2">
+              <p>👋 Hi! How can we help you today?</p>
             </div>
-
-            {/* Input box */}
             <input
               type="text"
               placeholder="Type a message..."
