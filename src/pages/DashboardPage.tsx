@@ -20,7 +20,7 @@ interface Trade {
 }
 
 interface Deposit {
-  id: string;
+  id: number;
   amount: number;
   status: string;
   created_at: string;
@@ -216,18 +216,20 @@ export const DashboardPage = () => {
         </section>
 
         {/* --- About Us Section --- */}
-        <section className="py-16 max-w-4xl mx-auto px-6 mt-12">
+        <section className="py-16 max-w-4xl mx-auto px-6 mt-12 rounded-xl bg-[#13151f] shadow-lg">
           <h2 className="text-3xl font-bold mb-6 text-center text-white">About Us</h2>
-          <p className="text-lg mb-4 text-gray-200">
-            We are a dedicated team building amazing web experiences.
+          <p className="text-lg mb-4 text-gray-200 text-justify">
+            At AITradePro, we empower individuals to take control of their financial future by providing advanced tools and insights for trading and investing across multiple markets. Our platform specializes in 
+            <span className="text-blue-400 font-semibold"> cryptocurrencies</span>, 
+            <span className="text-green-400 font-semibold"> forex</span>, 
+            <span className="text-yellow-400 font-semibold"> metals</span>, and 
+            <span className="text-purple-400 font-semibold"> indices</span>.
           </p>
-          <p className="text-lg mb-4 text-gray-200">
-            Our mission is to provide top-notch services to all our users,
-            ensuring reliability, innovation, and excellent support.
+          <p className="text-lg mb-4 text-gray-200 text-justify">
+            Whether you are a beginner or an experienced trader, AITradePro offers intuitive dashboards, real-time analytics, and risk management tools to help you make informed investment decisions. We focus on creating a safe, reliable, and transparent environment where your portfolio can grow steadily.
           </p>
-          <p className="text-lg text-gray-200">
-            With years of experience in the industry, we strive to make every
-            interaction seamless and enjoyable.
+          <p className="text-lg text-gray-200 text-justify">
+            Our mission is to bridge the gap between complex financial markets and everyday investors. By providing professional-grade insights and actionable strategies, we help our users build wealth efficiently across cryptocurrencies, forex, metals, and indices. Join AITradePro today and start your journey toward financial independence.
           </p>
         </section>
       </div>
@@ -256,11 +258,23 @@ export const DashboardPage = () => {
         </button>
 
         {showChat && (
-          <div className="absolute bottom-20 right-0 w-80 bg-[#13151f] rounded-xl shadow-xl p-4">
+          <div className="absolute bottom-20 right-0 w-80 bg-[#13151f] rounded-xl shadow-xl p-4 flex flex-col">
             <h3 className="text-white font-bold mb-2">Live Support</h3>
-            <div className="h-40 overflow-y-auto text-gray-200 mb-2">
-              <p>👋 Hi! How can we help you today?</p>
+
+            {/* Chat messages container */}
+            <div className="h-40 overflow-y-auto text-gray-200 mb-2 flex flex-col gap-2">
+              <div className="bg-gray-800 p-2 rounded-lg self-start">
+                👋 Hi! Welcome to AITradePro support. How can we assist you today?
+              </div>
+              <div className="bg-blue-600 p-2 rounded-lg self-end text-white">
+                Hello! I want to learn more about crypto trading.
+              </div>
+              <div className="bg-gray-800 p-2 rounded-lg self-start">
+                Absolutely! We provide tools and insights for crypto, forex, metals, and indices to help you trade confidently.
+              </div>
             </div>
+
+            {/* Input box */}
             <input
               type="text"
               placeholder="Type a message..."
