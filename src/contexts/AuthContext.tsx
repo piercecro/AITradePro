@@ -16,13 +16,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Toast states
+  // ✅ Success message states
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
 
-  // --- Original functions unchanged ---
+  // --- Original code unchanged ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
     const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
@@ -43,7 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         ]);
 
-        if (!insertErr) return;
+        if (!insertErr) {
+          console.info('Created user profile for', u.id);
+          return;
+        }
 
         if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) {
           return;
@@ -67,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
     }
+
     console.warn('Exceeded retries creating user profile for', u.id);
   };
 
@@ -98,15 +100,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const hashParams = window.location.hash;
         if (hashParams.includes('access_token')) {
-          const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-          if (error) console.error('Error handling redirect:', error.message);
-          else {
+          const { data, error } = await supabase.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error('Error handling redirect:', error.message);
+          } else {
             const confirmedUser = data.session?.user ?? null;
             if (!mounted) return;
             setUser(confirmedUser);
             setLoading(false);
             ensureProfileExists(confirmedUser);
           }
+
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
@@ -146,24 +152,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // --- Sign In with error toast ---
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    setErrorMessage(null);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-    } catch (err: any) {
-      console.error('Sign in error:', err.message);
-      setErrorMessage('❌ Invalid email or password');
-      setShowError(true);
-      setTimeout(() => setShowError(false), 5000);
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Sign Up with success toast ---
+  // ✅ Updated signUp (spinner removed, success toast added)
   const signUp = async (email: string, password: string, username: string) => {
     setSuccessMessage(null);
     try {
@@ -176,11 +175,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailRedirectTo: redirectUrl,
         },
       });
+
       if (error) throw error;
 
+      // ✅ Show success message toast
       setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
       setShowMessage(true);
 
+      // Auto-hide after 5 seconds
       setTimeout(() => {
         setShowMessage(false);
         setTimeout(() => setSuccessMessage(null), 500);
@@ -190,15 +192,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- Sign Out properly ---
   const signOut = async () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
-    } catch (err) {
-      console.error('Sign out error:', err);
     } finally {
       setLoading(false);
     }
@@ -206,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <>
-      {/* ✅ Success toast */}
+      {/* ✅ Tailwind-style success toast (bottom-right) */}
       {successMessage && (
         <div
           className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
@@ -227,27 +226,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         </div>
       )}
 
-      {/* ❌ Sign in error toast */}
-      {errorMessage && (
-        <div
-          className={`fixed bottom-6 right-6 bg-red-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
-            showError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-          style={{ zIndex: 9999 }}
-        >
-          <p className="text-sm font-medium mb-3">{errorMessage}</p>
-          <button
-            onClick={() => {
-              setShowError(false);
-              setTimeout(() => setErrorMessage(null), 500);
-            }}
-            className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
-          >
-            OK
-          </button>
-        </div>
-      )}
-
       <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
         {children}
       </AuthContext.Provider>
@@ -257,6 +235,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 };
