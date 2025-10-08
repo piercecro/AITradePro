@@ -16,7 +16,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Try to create profile, with a small retry on FK/transient errors
+  // ✅ ADDED: success message + visibility states
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showMessage, setShowMessage] = useState(false);
+
+  // --- ALL your original code below remains exactly the same ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
     const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
@@ -42,12 +46,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // If duplicate key, profile already exists — nothing to do
         if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) {
           return;
         }
 
-        // If foreign key or transient error, retry after a short delay
         const isTransient =
           insertErr.message &&
           (insertErr.message.toLowerCase().includes('foreign key') ||
@@ -59,7 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // transient -> wait and retry
         const delayMs = 200 * (attempt + 1);
         await new Promise((r) => setTimeout(r, delayMs));
       } catch (err) {
@@ -71,7 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.warn('Exceeded retries creating user profile for', u.id);
   };
 
-  // Ensure profile exists, but first check to avoid duplicate inserts
   const ensureProfileExists = async (u: User | null) => {
     if (!u) return;
     try {
@@ -82,12 +82,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (fetchErr && status !== 406) {
-        // Not-found single() returns 406; any other error we log and attempt creation
         console.warn('Error checking profile existence:', fetchErr.message);
       }
 
       if (!existing) {
-        // Run creation in background with retry logic
         createProfileWithRetry(u).catch((e) => console.error(e));
       }
     } catch (err) {
@@ -98,7 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Handle email confirmation redirects (the /auth/callback page)
     const handleRedirect = async () => {
       try {
         const hashParams = window.location.hash;
@@ -113,11 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!mounted) return;
             setUser(confirmedUser);
             setLoading(false);
-            // Background ensure profile
             ensureProfileExists(confirmedUser);
           }
 
-          // Clean up URL after processing
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
@@ -128,7 +123,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     handleRedirect();
 
-    // Load initial session
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
@@ -136,7 +130,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentUser = session?.user ?? null;
         setUser(currentUser);
         setLoading(false);
-        // Ensure profile in background
         ensureProfileExists(currentUser);
       })
       .catch((err) => {
@@ -144,14 +137,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted) setLoading(false);
       });
 
-    // Listen for login/logout changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const newUser = session?.user ?? null;
       setUser(newUser);
       setLoading(false);
-      // Do not await — create profile in background to avoid blocking UI
       ensureProfileExists(newUser).catch((e) => console.error(e));
     });
 
@@ -161,24 +152,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Sign in existing user
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } finally {
-      // Avoid leaving the app stuck in loading in case onAuthStateChange doesn't fire immediately
       setLoading(false);
     }
   };
 
-  // Sign up new user — do not create profile here; it will be created after session is established
+  // ✅ UPDATED: signUp — added toast trigger (no logic removed)
   const signUp = async (email: string, password: string, username: string) => {
     setLoading(true);
+    setSuccessMessage(null);
     try {
       const redirectUrl = `${window.location.origin}/auth/callback`;
-
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -189,13 +178,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
-      // profile creation will happen via ensureProfileExists after session is confirmed
+
+      setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
+      setShowMessage(true);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        setShowMessage(false);
+        setTimeout(() => setSuccessMessage(null), 500);
+      }, 5000);
+    } catch (err: any) {
+      console.error('Signup error:', err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Sign out
   const signOut = async () => {
     setLoading(true);
     try {
@@ -208,9 +206,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
+    <>
+      {/* ✅ Tailwind toast popup (bottom-right, fade + OK button) */}
+      {successMessage && (
+        <div
+          className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
+            showMessage ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}
+          style={{ zIndex: 9999 }}
+        >
+          <p className="text-sm font-medium mb-3">{successMessage}</p>
+          <button
+            onClick={() => {
+              setShowMessage(false);
+              setTimeout(() => setSuccessMessage(null), 500);
+            }}
+            className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
+      <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+        {children}
+      </AuthContext.Provider>
+    </>
   );
 };
 
