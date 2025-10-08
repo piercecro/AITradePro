@@ -50,26 +50,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // ✅ Sign in existing user
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
+  // ✅ Sign up new user + automatically create profile
   const signUp = async (email: string, password: string, username: string) => {
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { username },
-        emailRedirectTo: redirectUrl, // ✅ ensures Supabase sends to correct callback
+        emailRedirectTo: redirectUrl,
       },
     });
 
     if (error) throw error;
+
+    // ✅ Automatically create matching user_profiles row
+    if (data?.user) {
+      const { error: profileError } = await supabase.from('user_profiles').insert([
+        {
+          id: data.user.id, // same ID as in auth.users
+          username,
+          email,
+          available_balance: 0,
+          total_deposited: 0,
+          total_withdrawn: 0,
+          total_profit: 0,
+          role: 'user',
+        },
+      ]);
+
+      if (profileError && !profileError.message.includes('duplicate key')) {
+        console.error('Error creating user profile:', profileError.message);
+        throw profileError;
+      }
+    }
   };
 
+  // ✅ Sign out
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
