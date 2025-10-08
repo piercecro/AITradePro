@@ -20,7 +20,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
 
-  // --- Original profile creation code unchanged ---
+  // Try to create profile, with a small retry on FK/transient errors
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
     const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
@@ -41,8 +41,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         ]);
 
-        if (!insertErr) return;
-        if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) return;
+        if (!insertErr) {
+          console.info('Created user profile for', u.id);
+          return;
+        }
+
+        if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) {
+          return;
+        }
 
         const isTransient =
           insertErr.message &&
@@ -50,14 +56,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             insertErr.message.toLowerCase().includes('could not serialize') ||
             insertErr.message.toLowerCase().includes('timeout'));
 
-        if (!isTransient) return;
+        if (!isTransient) {
+          console.error('Error creating user profile:', insertErr.message);
+          return;
+        }
 
-        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+        const delayMs = 200 * (attempt + 1);
+        await new Promise((r) => setTimeout(r, delayMs));
       } catch (err) {
         console.error('Unexpected error creating profile:', err);
         return;
       }
     }
+
+    console.warn('Exceeded retries creating user profile for', u.id);
   };
 
   const ensureProfileExists = async (u: User | null) => {
@@ -69,8 +81,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', u.id)
         .single();
 
-      if (fetchErr && status !== 406) console.warn('Error checking profile existence:', fetchErr.message);
-      if (!existing) createProfileWithRetry(u).catch((e) => console.error(e));
+      if (fetchErr && status !== 406) {
+        console.warn('Error checking profile existence:', fetchErr.message);
+      }
+
+      if (!existing) {
+        createProfileWithRetry(u).catch((e) => console.error(e));
+      }
     } catch (err) {
       console.error('Unexpected error in ensureProfileExists:', err);
     }
@@ -83,15 +100,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const hashParams = window.location.hash;
         if (hashParams.includes('access_token')) {
-          const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-          if (error) console.error('Error handling redirect:', error.message);
-          else {
+          const { data, error } = await supabase.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error('Error handling redirect:', error.message);
+          } else {
             const confirmedUser = data.session?.user ?? null;
             if (!mounted) return;
             setUser(confirmedUser);
             setLoading(false);
             ensureProfileExists(confirmedUser);
           }
+
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
@@ -131,21 +152,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // ✅ Updated signIn with error message return
+  // ✅ Sign in returns error string instead of throwing
   const signIn = async (email: string, password: string): Promise<string | null> => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return error.message;
-      return null; // success
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        return error.message; // return the error message for UI
+      }
+      setUser(data.user ?? null);
+      return null;
     } catch (err: any) {
-      console.error('Sign-in error:', err.message);
-      return err.message || 'An unexpected error occurred.';
+      return err.message ?? 'Unknown error';
     } finally {
       setLoading(false);
     }
   };
 
+  // Sign up
   const signUp = async (email: string, password: string, username: string) => {
     setSuccessMessage(null);
     try {
@@ -153,14 +177,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { username }, emailRedirectTo: redirectUrl },
+        options: {
+          data: { username },
+          emailRedirectTo: redirectUrl,
+        },
       });
+
       if (error) throw error;
 
       // ✅ Show success message toast
       setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
       setShowMessage(true);
 
+      // Auto-hide after 5 seconds
       setTimeout(() => {
         setShowMessage(false);
         setTimeout(() => setSuccessMessage(null), 500);
@@ -183,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <>
+      {/* ✅ Tailwind-style success toast (bottom-right) */}
       {successMessage && (
         <div
           className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
@@ -212,6 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 };
