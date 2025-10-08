@@ -16,28 +16,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper: ensure the user_profiles row exists for a confirmed session.user
-  const ensureProfileExists = async (u: User | null) => {
+  // Try to create profile, with a small retry on FK/transient errors
+  const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
+    const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
+    const email = u.email ?? '';
 
-    try {
-      // Check if profile already exists
-      const { data: existing, error: fetchErr } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', u.id)
-        .single();
-
-      if (fetchErr && fetchErr.code !== 'PGRST116') {
-        // PGRST116 is PostgREST "Result contains no rows" (single() when not found)
-        console.warn('Error checking profile existence:', fetchErr.message);
-      }
-
-      if (!existing) {
-        // Compose profile from available user fields
-        const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
-        const email = u.email ?? '';
-
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
         const { error: insertErr } = await supabase.from('user_profiles').insert([
           {
             id: u.id,
@@ -51,14 +37,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         ]);
 
-        if (insertErr) {
-          // If duplicate key error occurs, it's safe to ignore (profile already inserted)
-          if (!insertErr.message.toLowerCase().includes('duplicate')) {
-            console.error('Error creating user profile:', insertErr.message);
-          }
-        } else {
+        if (!insertErr) {
           console.info('Created user profile for', u.id);
+          return;
         }
+
+        // If duplicate key, profile already exists — nothing to do
+        if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) {
+          return;
+        }
+
+        // If foreign key or transient error, retry after a short delay
+        const isTransient =
+          insertErr.message &&
+          (insertErr.message.toLowerCase().includes('foreign key') ||
+            insertErr.message.toLowerCase().includes('could not serialize') ||
+            insertErr.message.toLowerCase().includes('timeout'));
+
+        if (!isTransient) {
+          console.error('Error creating user profile:', insertErr.message);
+          return;
+        }
+
+        // transient -> wait and retry
+        const delayMs = 200 * (attempt + 1);
+        await new Promise((r) => setTimeout(r, delayMs));
+      } catch (err) {
+        console.error('Unexpected error creating profile:', err);
+        return;
+      }
+    }
+
+    console.warn('Exceeded retries creating user profile for', u.id);
+  };
+
+  // Ensure profile exists, but first check to avoid duplicate inserts
+  const ensureProfileExists = async (u: User | null) => {
+    if (!u) return;
+    try {
+      const { data: existing, error: fetchErr, status } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', u.id)
+        .single();
+
+      if (fetchErr && status !== 406) {
+        // Not-found single() returns 406; any other error we log and attempt creation
+        console.warn('Error checking profile existence:', fetchErr.message);
+      }
+
+      if (!existing) {
+        // Run creation in background with retry logic
+        createProfileWithRetry(u).catch((e) => console.error(e));
       }
     } catch (err) {
       console.error('Unexpected error in ensureProfileExists:', err);
@@ -66,82 +96,115 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Handle email confirmation redirects (the /auth/callback page)
     const handleRedirect = async () => {
-      const hashParams = window.location.hash;
-      if (hashParams.includes('access_token')) {
-        const { data, error } = await supabase.auth.getSessionFromUrl({
-          storeSession: true,
-        });
-        if (error) {
-          console.error('Error handling redirect:', error.message);
-        } else {
-          const confirmedUser = data.session?.user ?? null;
-          setUser(confirmedUser);
-          // Ensure profile after redirect-confirmed session
-          await ensureProfileExists(confirmedUser);
-        }
+      try {
+        const hashParams = window.location.hash;
+        if (hashParams.includes('access_token')) {
+          const { data, error } = await supabase.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error('Error handling redirect:', error.message);
+          } else {
+            const confirmedUser = data.session?.user ?? null;
+            if (!mounted) return;
+            setUser(confirmedUser);
+            setLoading(false);
+            // Background ensure profile
+            ensureProfileExists(confirmedUser);
+          }
 
-        // Clean up URL after processing
-        window.history.replaceState({}, document.title, window.location.pathname);
+          // Clean up URL after processing
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch (err) {
+        console.error('Redirect handler error:', err);
+        if (mounted) setLoading(false);
       }
     };
 
     handleRedirect();
 
     // Load initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setLoading(false);
-
-      // Ensure profile if a valid session exists on page load
-      ensureProfileExists(currentUser);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        setLoading(false);
+        // Ensure profile in background
+        ensureProfileExists(currentUser);
+      })
+      .catch((err) => {
+        console.error('getSession error:', err);
+        if (mounted) setLoading(false);
+      });
 
     // Listen for login/logout changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const newUser = session?.user ?? null;
       setUser(newUser);
-
-      // Ensure profile after auth state change (login/confirm)
-      await ensureProfileExists(newUser);
+      setLoading(false);
+      // Do not await — create profile in background to avoid blocking UI
+      ensureProfileExists(newUser).catch((e) => console.error(e));
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Sign in existing user
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } finally {
+      // Avoid leaving the app stuck in loading in case onAuthStateChange doesn't fire immediately
+      setLoading(false);
+    }
   };
 
-  // Sign up new user — DO NOT create profile immediately here to avoid race
+  // Sign up new user — do not create profile here; it will be created after session is established
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/auth/callback`;
+    setLoading(true);
+    try {
+      const redirectUrl = `${window.location.origin}/auth/callback`;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username },
-        emailRedirectTo: redirectUrl,
-      },
-    });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username },
+          emailRedirectTo: redirectUrl,
+        },
+      });
 
-    if (error) throw error;
-
-    // NOTE: We intentionally do NOT insert into user_profiles here.
-    // profile creation is handled in ensureProfileExists after the session is established.
+      if (error) throw error;
+      // profile creation will happen via ensureProfileExists after session is confirmed
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Sign out
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
