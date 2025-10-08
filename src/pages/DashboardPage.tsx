@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { TrendingUp, Wallet, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { CryptoChart } from '../components/CryptoChart'; // ✅ Correct import
+import { CryptoChart } from '../components/CryptoChart';
+import Testimonials from '../components/Testimonials/Testimonials';
 
 interface UserProfile {
   available_balance: number;
@@ -30,6 +31,7 @@ export const DashboardPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
+  const [showChat, setShowChat] = useState(false); // Live chat toggle
 
   useEffect(() => {
     if (user) {
@@ -38,7 +40,6 @@ export const DashboardPage = () => {
   }, [user]);
 
   const loadData = async () => {
-    // Fetch user profile
     const { data: profileData } = await supabase
       .from('user_profiles')
       .select('*')
@@ -47,7 +48,6 @@ export const DashboardPage = () => {
 
     if (profileData) setProfile(profileData);
 
-    // Fetch recent trades
     const { data: tradesData } = await supabase
       .from('trades')
       .select('*')
@@ -57,7 +57,6 @@ export const DashboardPage = () => {
 
     if (tradesData) setRecentTrades(tradesData);
 
-    // Fetch recent deposits
     const { data: depositsData } = await supabase
       .from('deposits')
       .select('*')
@@ -81,7 +80,7 @@ export const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] pl-16 pt-16">
+    <div className="relative min-h-screen bg-[#0a0c10] pl-16 pt-16">
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-white text-3xl font-bold mb-8">Dashboard</h1>
 
@@ -209,6 +208,66 @@ export const DashboardPage = () => {
             )}
           </div>
         </div>
+
+        {/* --- Testimonials Section --- */}
+        <section className="py-16 bg-gray-900 mt-12 rounded-xl">
+          <h2 className="text-3xl font-bold text-center text-white mb-12">What Our Users Say</h2>
+          <Testimonials />
+        </section>
+
+        {/* --- About Us Section --- */}
+        <section className="py-16 max-w-4xl mx-auto px-6 mt-12">
+          <h2 className="text-3xl font-bold mb-6 text-center text-white">About Us</h2>
+          <p className="text-lg mb-4 text-gray-200">
+            We are a dedicated team building amazing web experiences.
+          </p>
+          <p className="text-lg mb-4 text-gray-200">
+            Our mission is to provide top-notch services to all our users,
+            ensuring reliability, innovation, and excellent support.
+          </p>
+          <p className="text-lg text-gray-200">
+            With years of experience in the industry, we strive to make every
+            interaction seamless and enjoyable.
+          </p>
+        </section>
+      </div>
+
+      {/* --- Live Chat Support Icon --- */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setShowChat((prev) => !prev)}
+          className="bg-blue-600 text-white w-16 h-16 flex items-center justify-center rounded-full shadow-lg hover:bg-blue-700 transition"
+          title="Live Support"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-8 w-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8-1.77 0-3.41-.5-4.79-1.35L3 21l1.35-4.21C3.5 15.41 3 13.77 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+        </button>
+
+        {showChat && (
+          <div className="absolute bottom-20 right-0 w-80 bg-[#13151f] rounded-xl shadow-xl p-4">
+            <h3 className="text-white font-bold mb-2">Live Support</h3>
+            <div className="h-40 overflow-y-auto text-gray-200 mb-2">
+              <p>👋 Hi! How can we help you today?</p>
+            </div>
+            <input
+              type="text"
+              placeholder="Type a message..."
+              className="w-full px-3 py-2 rounded-lg bg-gray-800 text-white focus:outline-none"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
