@@ -20,6 +20,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
 
+  // ✅ Error message states (NEW)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showError, setShowError] = useState(false);
+
   // --- Original code unchanged ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
@@ -156,7 +160,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        // ✅ Show error message if login fails
+        setErrorMessage('❌ Incorrect email or password. Please try again.');
+        setShowError(true);
+        setTimeout(() => {
+          setShowError(false);
+          setTimeout(() => setErrorMessage(null), 500);
+        }, 5000);
+        throw error;
+      }
     } finally {
       setLoading(false);
     }
@@ -218,6 +231,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             onClick={() => {
               setShowMessage(false);
               setTimeout(() => setSuccessMessage(null), 500);
+            }}
+            className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
+      {/* ❌ Tailwind-style error toast (bottom-right) */}
+      {errorMessage && (
+        <div
+          className={`fixed bottom-6 right-6 bg-red-600 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
+            showError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}
+          style={{ zIndex: 9999 }}
+        >
+          <p className="text-sm font-medium mb-3">{errorMessage}</p>
+          <button
+            onClick={() => {
+              setShowError(false);
+              setTimeout(() => setErrorMessage(null), 500);
             }}
             className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
           >
