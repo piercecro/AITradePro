@@ -16,16 +16,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper: ensure the user_profiles row exists for a confirmed session.user
+  const ensureProfileExists = async (u: User | null) => {
+    if (!u) return;
+
+    try {
+      // Check if profile already exists
+      const { data: existing, error: fetchErr } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', u.id)
+        .single();
+
+      if (fetchErr && fetchErr.code !== 'PGRST116') {
+        // PGRST116 is PostgREST "Result contains no rows" (single() when not found)
+        console.warn('Error checking profile existence:', fetchErr.message);
+      }
+
+      if (!existing) {
+        // Compose profile from available user fields
+        const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
+        const email = u.email ?? '';
+
+        const { error: insertErr } = await supabase.from('user_profiles').insert([
+          {
+            id: u.id,
+            username: usernameFromMeta,
+            email,
+            available_balance: 0,
+            total_deposited: 0,
+            total_withdrawn: 0,
+            total_profit: 0,
+            role: 'user',
+          },
+        ]);
+
+        if (insertErr) {
+          // If duplicate key error occurs, it's safe to ignore (profile already inserted)
+          if (!insertErr.message.toLowerCase().includes('duplicate')) {
+            console.error('Error creating user profile:', insertErr.message);
+          }
+        } else {
+          console.info('Created user profile for', u.id);
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error in ensureProfileExists:', err);
+    }
+  };
+
   useEffect(() => {
-    // ✅ Handle email confirmation redirects (the /auth/callback page)
+    // Handle email confirmation redirects (the /auth/callback page)
     const handleRedirect = async () => {
       const hashParams = window.location.hash;
       if (hashParams.includes('access_token')) {
         const { data, error } = await supabase.auth.getSessionFromUrl({
           storeSession: true,
         });
-        if (error) console.error('Error handling redirect:', error.message);
-        else setUser(data.session?.user ?? null);
+        if (error) {
+          console.error('Error handling redirect:', error.message);
+        } else {
+          const confirmedUser = data.session?.user ?? null;
+          setUser(confirmedUser);
+          // Ensure profile after redirect-confirmed session
+          await ensureProfileExists(confirmedUser);
+        }
 
         // Clean up URL after processing
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -36,27 +91,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Load initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
       setLoading(false);
+
+      // Ensure profile if a valid session exists on page load
+      ensureProfileExists(currentUser);
     });
 
     // Listen for login/logout changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const newUser = session?.user ?? null;
+      setUser(newUser);
+
+      // Ensure profile after auth state change (login/confirm)
+      await ensureProfileExists(newUser);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ Sign in existing user
+  // Sign in existing user
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
-  // ✅ Sign up new user + automatically create profile
+  // Sign up new user — DO NOT create profile immediately here to avoid race
   const signUp = async (email: string, password: string, username: string) => {
     const redirectUrl = `${window.location.origin}/auth/callback`;
 
@@ -71,29 +134,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (error) throw error;
 
-    // ✅ Automatically create matching user_profiles row
-    if (data?.user) {
-      const { error: profileError } = await supabase.from('user_profiles').insert([
-        {
-          id: data.user.id, // same ID as in auth.users
-          username,
-          email,
-          available_balance: 0,
-          total_deposited: 0,
-          total_withdrawn: 0,
-          total_profit: 0,
-          role: 'user',
-        },
-      ]);
-
-      if (profileError && !profileError.message.includes('duplicate key')) {
-        console.error('Error creating user profile:', profileError.message);
-        throw profileError;
-      }
-    }
+    // NOTE: We intentionally do NOT insert into user_profiles here.
+    // profile creation is handled in ensureProfileExists after the session is established.
   };
 
-  // ✅ Sign out
+  // Sign out
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
