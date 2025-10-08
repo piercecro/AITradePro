@@ -7,7 +7,7 @@ interface Testimonial {
   text: string;
 }
 
-// Add your 9 testimonials here
+// 9 Testimonials
 const testimonials: Testimonial[] = [
   { id: 1, name: "Alice", image: "/images/testimonials/alice.jpg", text: "This platform is amazing!" },
   { id: 2, name: "Bob", image: "/images/testimonials/bob.jpg", text: "I love using this service." },
@@ -33,6 +33,7 @@ export default function Testimonials() {
         setFade(true); // fade in new set
       }, 500); // fade duration
     }, 5000); // change every 5 seconds
+
     return () => clearInterval(interval);
   }, []);
 
@@ -44,7 +45,7 @@ export default function Testimonials() {
   ];
 
   return (
-    <div className={`flex justify-center gap-6 transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`flex justify-center gap-6 transition-opacity duration-500 ${fade ? 'opacity-100' : 'opacity-0'} mt-12 mb-12`}>
       {currentTestimonials.map((t) => (
         <div
           key={t.id}
@@ -53,7 +54,7 @@ export default function Testimonials() {
           <img
             src={t.image}
             alt={t.name}
-            className="w-16 h-16 rounded-full object-cover mb-3"
+            className="w-32 h-32 rounded-full object-cover mb-4"
           />
           <p className="text-gray-300 italic text-sm mb-2">&quot;{t.text}&quot;</p>
           <p className="text-white font-semibold">{t.name}</p>
