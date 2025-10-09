@@ -125,8 +125,8 @@ export const CryptoChart = () => {
           <Legend />
           <Line type="monotone" dataKey="bitcoin" stroke="#f7931a" strokeWidth={2} name="BTC/USD" />
           <Line type="monotone" dataKey="ethereum" stroke="#627eea" strokeWidth={2} name="ETH/USD" />
-          <Line type="monotone" dataKey="gold" stroke="#ffd700" strokeWidth={2} name="Gold (mock)" />
-          <Line type="monotone" dataKey="silver" stroke="#c0c0c0" strokeWidth={2} name="Silver (mock)" />
+          <Line type="monotone" dataKey="gold" stroke="#ffd700" strokeWidth={2} name="Gold" />
+          <Line type="monotone" dataKey="silver" stroke="#c0c0c0" strokeWidth={2} name="Silver" />
           <Line type="monotone" dataKey="eur" stroke="#1e90ff" strokeWidth={2} name="EUR/USD" />
           <Line type="monotone" dataKey="gbp" stroke="#32cd32" strokeWidth={2} name="GBP/USD" />
         </LineChart>
