@@ -94,7 +94,7 @@ export const TradePage = () => {
         });
     }
 
-    setBotConnected(true);
+    setBotConnected(prev => !prev);
     setShowConnectModal(false);
   };
 
