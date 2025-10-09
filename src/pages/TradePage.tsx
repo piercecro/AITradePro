@@ -70,6 +70,32 @@ export const TradePage = () => {
     if (data) setBotConnected(data.is_connected);
   };
 
+  // ✅ Automatically create a demo trade when bot connects
+  const createMockTrade = async () => {
+    const pairs = ['EUR/USD', 'GBP/USD', 'XAU/USD', 'BTC/USD', 'ETH/USD'];
+    const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
+    const tradeType = Math.random() > 0.5 ? 'long' : 'short';
+    const entryPrice = 1000 + Math.random() * 50000;
+    const profitLoss = (Math.random() - 0.5) * 200; // random profit/loss
+    const amount = 100 + Math.random() * 900;
+
+    const trade = {
+      user_id: user?.id,
+      trading_pair: randomPair,
+      trade_type: tradeType,
+      amount,
+      entry_price: entryPrice,
+      exit_price: null,
+      profit_loss: profitLoss,
+      status: 'active',
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+    };
+
+    await supabase.from('trades').insert(trade);
+    await loadTrades(); // refresh immediately
+  };
+
   const handleConnectBot = async () => {
     const { data: existing } = await supabase
       .from('bot_connections')
@@ -79,10 +105,17 @@ export const TradePage = () => {
       .maybeSingle();
 
     if (existing) {
+      const newStatus = !existing.is_connected;
       await supabase
         .from('bot_connections')
-        .update({ is_connected: true, connected_at: new Date().toISOString() })
+        .update({ is_connected: newStatus, connected_at: new Date().toISOString() })
         .eq('id', existing.id);
+      setBotConnected(newStatus);
+
+      // ✅ When user newly connects, create a mock trade
+      if (!existing.is_connected && newStatus) {
+        await createMockTrade();
+      }
     } else {
       await supabase
         .from('bot_connections')
@@ -92,9 +125,10 @@ export const TradePage = () => {
           is_connected: true,
           connected_at: new Date().toISOString(),
         });
+      setBotConnected(true);
+      await createMockTrade();
     }
 
-    setBotConnected(prev => !prev);
     setShowConnectModal(false);
   };
 
@@ -171,33 +205,33 @@ export const TradePage = () => {
             <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-white text-lg font-semibold">Trading Bot</h3>
-                <Radio
-                  size={20}
-                  className={botConnected ? 'text-green-500' : 'text-gray-500'}
-                />
+                <Radio size={20} className={botConnected ? 'text-green-500' : 'text-gray-500'} />
               </div>
 
               <div className="mb-4">
                 <div className="text-gray-400 text-sm mb-2">Status</div>
-                <div className={`text-lg font-semibold ${botConnected ? 'text-green-500' : 'text-gray-400'}`}>
+                <div
+                  className={`text-lg font-semibold ${
+                    botConnected ? 'text-green-500' : 'text-gray-400'
+                  }`}
+                >
                   {botConnected ? 'Connected' : 'Disconnected'}
                 </div>
               </div>
 
               <button
                 onClick={() => setShowConnectModal(true)}
-                disabled={botConnected}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
-                {botConnected ? 'Bot Connected' : 'Connect Bot'}
+                {botConnected ? 'Disconnect Bot' : 'Connect Bot'}
               </button>
 
-              {/* ✅ Added passive income info message here */}
               {!botConnected && (
                 <p className="mt-3 text-gray-400 text-sm text-center">
                   💡 Our automated trading bot allows you to earn{' '}
                   <span className="text-green-400 font-semibold">5–12% compound interest</span>{' '}
-                  passively every week through intelligent crypto, forex, and metals trading strategies.
+                  passively every week through intelligent crypto, forex, and metals trading
+                  strategies.
                 </p>
               )}
 
@@ -287,11 +321,14 @@ export const TradePage = () => {
         {showConnectModal && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-[#13151f] rounded-xl p-8 max-w-md w-full border border-gray-800">
-              <h3 className="text-white text-2xl font-bold mb-4">Connect Trading Bot</h3>
+              <h3 className="text-white text-2xl font-bold mb-4">
+                {botConnected ? 'Disconnect Trading Bot' : 'Connect Trading Bot'}
+              </h3>
 
               <p className="text-gray-400 mb-6">
-                Connecting the trading bot will allow it to automatically execute trades on your behalf based on
-                market conditions and your configured strategy.
+                {botConnected
+                  ? 'Disconnecting the bot will stop it from executing automated trades on your behalf.'
+                  : 'Connecting the trading bot will allow it to automatically execute trades on your behalf based on market conditions and your configured strategy.'}
               </p>
 
               <div className="flex space-x-3">
@@ -305,7 +342,7 @@ export const TradePage = () => {
                   onClick={handleConnectBot}
                   className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Connect
+                  {botConnected ? 'Disconnect' : 'Connect'}
                 </button>
               </div>
             </div>
