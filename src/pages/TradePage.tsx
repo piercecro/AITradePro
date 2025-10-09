@@ -192,6 +192,15 @@ export const TradePage = () => {
                 {botConnected ? 'Bot Connected' : 'Connect Bot'}
               </button>
 
+              {/* ✅ Added passive income info message here */}
+              {!botConnected && (
+                <p className="mt-3 text-gray-400 text-sm text-center">
+                  💡 Our automated trading bot allows you to earn{' '}
+                  <span className="text-green-400 font-semibold">5–12% compound interest</span>{' '}
+                  passively every week through intelligent crypto, forex, and metals trading strategies.
+                </p>
+              )}
+
               {botConnected && (
                 <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                   <div className="text-green-500 text-sm">
