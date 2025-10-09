@@ -27,9 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- Original code unchanged ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
-    const usernameFromMeta = (u.user_metadata && (u.user_metadata as any).username) || '';
-    const email = u.email ?? '';
-
+    const { username: metaUsername } = (u.user_metadata as any) || {};
+const usernameFromMeta = metaUsername || u.email?.split('@')[0] || 'User';
+const email = u.email ?? '';
+    
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const { error: insertErr } = await supabase.from('user_profiles').insert([
