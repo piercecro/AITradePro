@@ -28,21 +28,22 @@ export const Header = ({ onNavigate }: HeaderProps) => {
         <div className="flex items-center space-x-2 bg-gray-800 rounded-lg px-3 py-2">
           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           <span className="text-white text-sm font-medium">3</span>
-          <ChevronDown size={16} className="text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-gray-400" />
         </div>
 
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center space-x-2 bg-gray-800 rounded-lg px-3 py-2 hover:bg-gray-700 transition-colors"
+            aria-label="Open user menu"
           >
             <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-semibold">
                 {user?.email?.[0].toUpperCase()}
               </span>
             </div>
-            <span className="text-white text-sm">{user?.email?.split('@')[0]}</span>
-            <ChevronDown size={16} className="text-gray-400" />
+            <span className="hidden sm:inline text-white text-sm">{user?.email?.split('@')[0]}</span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
           </button>
 
           {showUserMenu && (
@@ -65,24 +66,29 @@ export const Header = ({ onNavigate }: HeaderProps) => {
           )}
         </div>
 
-        <button className="relative p-2 text-gray-400 hover:text-white transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            aria-label="Notifications"
+            className="relative p-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+          </button>
 
-        <button className="p-2 text-gray-400 hover:text-white transition-colors">
-          <Settings size={20} />
-        </button>
+          <button aria-label="Settings" className="p-2 text-gray-400 hover:text-white transition-colors">
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
 
-        <button className="p-2 text-gray-400 hover:text-white transition-colors">
-          <MessageCircle size={20} />
-        </button>
+          <button aria-label="Messages" className="p-2 text-gray-400 hover:text-white transition-colors">
+            <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
 
-        <button className="flex items-center space-x-2 p-2 text-gray-400 hover:text-white transition-colors">
-          <Globe size={20} />
-          <span className="text-sm">EN</span>
-          <ChevronDown size={14} />
-        </button>
+          <button aria-label="Language" className="flex items-center space-x-2 p-2 text-gray-400 hover:text-white transition-colors">
+            <Globe className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="hidden sm:inline text-sm">EN</span>
+            <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
+        </div>
       </div>
     </header>
   );
