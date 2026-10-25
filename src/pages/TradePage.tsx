@@ -16,10 +16,6 @@ interface Trade {
   closed_at: string | null;
 }
 
-interface BotConnection {
-  is_connected: boolean;
-}
-
 const tradingPairs = [
   { pair: 'USD/EUR', category: 'Forex' },
   { pair: 'USD/GBP', category: 'Forex' },
@@ -81,13 +77,18 @@ export const TradePage = () => {
   const loadTrades = async () => {
     if (!user?.id) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('trades')
       .select('*')
       .eq('user_id', user.id)
       .order('opened_at', { ascending: false });
 
-    if (data) setTrades(data);
+    if (error) {
+      console.error('Error loading trades:', error.message);
+      return;
+    }
+
+    setTrades(data ?? []);
   };
 
   const loadBotStatus = async () => {
@@ -111,7 +112,6 @@ export const TradePage = () => {
     setBotConnected(Boolean(data?.is_connected));
   };
 
-  // ✅ Automatically create a demo trade when bot connects
   const createMockTrade = async () => {
     if (!user?.id) return;
 
@@ -119,7 +119,7 @@ export const TradePage = () => {
     const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
     const tradeType = Math.random() > 0.5 ? 'long' : 'short';
     const entryPrice = 1000 + Math.random() * 50000;
-    const profitLoss = (Math.random() - 0.5) * 200; // random profit/loss
+    const profitLoss = (Math.random() - 0.5) * 200;
     const amount = 100 + Math.random() * 900;
 
     const trade = {
@@ -135,8 +135,13 @@ export const TradePage = () => {
       closed_at: null,
     };
 
-    await supabase.from('trades').insert(trade);
-    await loadTrades(); // refresh immediately
+    const { error } = await supabase.from('trades').insert(trade);
+    if (error) {
+      console.error('Error creating mock trade:', error.message);
+      return;
+    }
+
+    await loadTrades();
   };
 
   const persistBotStatus = async (connected: boolean) => {
@@ -162,46 +167,45 @@ export const TradePage = () => {
   };
 
   const handleConnectBot = async () => {
-    if (!user?.id) return;
-
-    const { data: existing, error: existingError } = await supabase
-      .from('bot_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('bot_name', 'trading_bot')
-      .maybeSingle();
-
-    if (existingError) {
-      console.error('Error checking bot status:', existingError.message);
+    if (!user?.id) {
+      console.error('Connect bot failed: no authenticated user');
       return;
     }
 
-    const nextStatus = existing ? !existing.is_connected : true;
-
     try {
+      const { data: existing, error: existingError } = await supabase
+        .from('bot_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('bot_name', 'trading_bot')
+        .maybeSingle();
+
+      if (existingError) {
+        throw existingError;
+      }
+
+      const nextStatus = existing ? !existing.is_connected : true;
       await persistBotStatus(nextStatus);
 
       if (nextStatus && !existing?.is_connected) {
         await createMockTrade();
       }
+
+      setShowConnectModal(false);
     } catch (error: any) {
       console.error('Bot connection update failed:', error.message);
+      alert(`Bot connection failed: ${error.message}`);
     }
-
-    setShowConnectModal(false);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2,
     }).format(value);
-  };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 
   return (
     <div className="min-h-screen bg-[#0a0c10] pl-16 pt-16">
