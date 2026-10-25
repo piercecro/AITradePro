@@ -98,7 +98,7 @@ const fetchCryptoCandleData = async (pair: MarketPair) => {
       return buildFallbackData(pair);
     }
 
-    return values.map(([timestamp, open, high, low, close], index) => ({
+    return values.map(([timestamp, open, high, low, close]) => ({
       date: new Date(timestamp).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -144,7 +144,7 @@ const fetchFxCandleData = async (pair: MarketPair) => {
 
     let previous = Number(entries[0][1][config.to]);
 
-    return entries.map(([dateString, rates], index) => {
+    return entries.map(([dateString, rates]) => {
       const rate = Number(rates[config.to]);
       const open = previous;
       const close = rate;
@@ -194,8 +194,24 @@ const CandleChart = ({ data }: { data: CandleData[] }) => {
   const step = (width - padding * 2) / Math.max(data.length, 1);
   const candleWidth = clamp(step * 0.62, 6, 18);
 
+  const closePath = data
+    .map((point, index) => {
+      const x = padding + index * step + step / 2;
+      const y = padding + ((maxPrice - point.close) / priceRange) * (height - padding * 2);
+      return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+    })
+    .join(' ');
+
+  const gridLines = Array.from({ length: 5 }, (_, i) => {
+    const y = padding + (i / 4) * (height - padding * 2);
+    return <line key={y} x1={padding} x2={width - padding} y1={y} y2={y} stroke="#2a2f3b" strokeDasharray="4 6" />;
+  });
+
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" role="img" aria-label="Market candles">
+      {gridLines}
+      <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+
       {data.map((point, index) => {
         const x = padding + index * step + step / 2;
         const yOpen = padding + ((maxPrice - point.open) / priceRange) * (height - padding * 2);
@@ -217,6 +233,7 @@ const CandleChart = ({ data }: { data: CandleData[] }) => {
               stroke={color}
               strokeWidth={1.5}
               strokeLinecap="round"
+              opacity={0.9}
             />
             <rect
               x={x - candleWidth / 2}
@@ -225,7 +242,7 @@ const CandleChart = ({ data }: { data: CandleData[] }) => {
               height={bodyHeight}
               rx={3}
               fill={color}
-              opacity={0.92}
+              opacity={0.8}
             />
           </g>
         );
