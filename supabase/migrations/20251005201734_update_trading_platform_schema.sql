@@ -31,7 +31,7 @@ BEGIN
     ALTER TABLE user_profiles DROP COLUMN IF EXISTS checking_account;
     ALTER TABLE user_profiles DROP COLUMN IF EXISTS tokens_balance;
     ALTER TABLE user_profiles DROP COLUMN IF EXISTS kyc_verified;
-    
+
     ALTER TABLE user_profiles ADD COLUMN available_balance numeric DEFAULT 0;
     ALTER TABLE user_profiles ADD COLUMN total_deposited numeric DEFAULT 0;
     ALTER TABLE user_profiles ADD COLUMN total_withdrawn numeric DEFAULT 0;
@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS deposits (
 );
 
 ALTER TABLE deposits ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own deposits" ON deposits;
+DROP POLICY IF EXISTS "Users can insert own deposits" ON deposits;
 
 CREATE POLICY "Users can view own deposits"
   ON deposits FOR SELECT
@@ -77,6 +80,9 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 );
 
 ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own withdrawals" ON withdrawals;
+DROP POLICY IF EXISTS "Users can insert own withdrawals" ON withdrawals;
 
 CREATE POLICY "Users can view own withdrawals"
   ON withdrawals FOR SELECT
@@ -104,6 +110,10 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 
 ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own trades" ON trades;
+DROP POLICY IF EXISTS "Users can insert own trades" ON trades;
+DROP POLICY IF EXISTS "Users can update own trades" ON trades;
 
 CREATE POLICY "Users can view own trades"
   ON trades FOR SELECT
@@ -133,6 +143,9 @@ CREATE TABLE IF NOT EXISTS bot_connections (
 );
 
 ALTER TABLE bot_connections ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view own bot connections" ON bot_connections;
+DROP POLICY IF EXISTS "Users can manage own bot connections" ON bot_connections;
 
 CREATE POLICY "Users can view own bot connections"
   ON bot_connections FOR SELECT
