@@ -46,8 +46,6 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 2,
   }).format(value);
 
-const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
-
 const buildChartData = (pair: string): CandleData[] => {
   const base = {
     'BTC/USD': 62000,
@@ -190,10 +188,19 @@ export const TradePage = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [botConnected, setBotConnected] = useState(false);
   const [searchInput, setSearchInput] = useState('');
-  const [selectedMarketPair, setSelectedMarketPair] = useState('BTC/USD');
+  const [selectedMarketPair, setSelectedMarketPair] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'BTC/USD';
+    return localStorage.getItem('selectedTradingPair') || 'BTC/USD';
+  });
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [chartMode, setChartMode] = useState<'candles' | 'line'>('candles');
   const [showIndicators, setShowIndicators] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedTradingPair', selectedMarketPair);
+    }
+  }, [selectedMarketPair]);
 
   useEffect(() => {
     if (user) {
@@ -201,6 +208,57 @@ export const TradePage = () => {
       loadBotStatus();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.id || !botConnected) return;
+
+    const ensureSelectedPairTrade = async () => {
+      const { data: existing, error } = await supabase
+        .from('trades')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('trading_pair', selectedMarketPair)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking active trade for selected pair:', error.message);
+        return;
+      }
+
+      if (existing) {
+        return;
+      }
+
+      const tradeType = Math.random() > 0.5 ? 'long' : 'short';
+      const entryPrice = Math.random() * 1000 + 100;
+      const amount = 100 + Math.random() * 900;
+      const profitLoss = (Math.random() - 0.5) * 250;
+
+      const newTrade = {
+        user_id: user.id,
+        trading_pair: selectedMarketPair,
+        trade_type: tradeType,
+        amount,
+        entry_price: entryPrice,
+        exit_price: null,
+        profit_loss: profitLoss,
+        status: 'active',
+        opened_at: new Date().toISOString(),
+        closed_at: null,
+      };
+
+      const { error: insertError } = await supabase.from('trades').insert(newTrade);
+      if (insertError) {
+        console.error('Error creating selected pair trade:', insertError.message);
+        return;
+      }
+
+      await loadTrades();
+    };
+
+    ensureSelectedPairTrade();
+  }, [selectedMarketPair, botConnected, user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -271,6 +329,18 @@ export const TradePage = () => {
 
   const createMockTrade = async (pair = selectedMarketPair) => {
     if (!user?.id) return;
+
+    const { data: existingTrade } = await supabase
+      .from('trades')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('trading_pair', pair)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (existingTrade) {
+      return;
+    }
 
     const tradeType = Math.random() > 0.5 ? 'long' : 'short';
     const entryPrice = Math.random() * 1000 + 100;
