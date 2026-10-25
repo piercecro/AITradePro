@@ -20,7 +20,6 @@ const AppContent = () => {
   const [verifying, setVerifying] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // ✅ Handle Supabase redirect after email verification
   useEffect(() => {
     const handleAuthRedirect = async () => {
       if (window.location.pathname === '/auth/callback') {
@@ -44,28 +43,37 @@ const AppContent = () => {
     handleAuthRedirect();
   }, []);
 
-  // ✅ Save current page to localStorage
   useEffect(() => {
     localStorage.setItem('currentPage', currentPage);
   }, [currentPage]);
 
-  // ✅ Check if user is admin
   useEffect(() => {
     const checkAdmin = async () => {
-      if (user) {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
         const { data, error } = await supabase
           .from('user_profiles')
-          .select('role')
+          .select('*')
           .eq('id', user.id)
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching role:', error.message);
-        } else {
-          setIsAdmin(data?.role === 'admin');
+          console.error('Error fetching user profile:', error.message);
+          setIsAdmin(false);
+          return;
         }
+
+        setIsAdmin((data as any)?.role === 'admin');
+      } catch (err) {
+        console.error('Unexpected error fetching admin role:', err);
+        setIsAdmin(false);
       }
     };
+
     checkAdmin();
   }, [user]);
 
@@ -111,7 +119,7 @@ const AppContent = () => {
       <Sidebar
         currentPage={currentPage}
         onNavigate={setCurrentPage}
-        isAdmin={isAdmin} // ✅ Pass admin flag to sidebar
+        isAdmin={isAdmin}
       />
       <Header onNavigate={setCurrentPage} />
       {renderPage()}
