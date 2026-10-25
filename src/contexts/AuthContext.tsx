@@ -16,27 +16,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Success message states
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showMessage, setShowMessage] = useState(false);
 
-  // ✅ Error message states (NEW)
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
 
-  // --- Original code unchanged ---
   const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
     if (!u) return;
-    const { username: metaUsername } = (u.user_metadata as any) || {};
-const usernameFromMeta = metaUsername || u.email?.split('@')[0] || 'User';
-const email = u.email ?? '';
-    
+
+    const metaUsername = (u.user_metadata as any)?.username ?? (u.user_metadata as any)?.full_name ?? u.email?.split('@')[0] ?? 'User';
+    const email = u.email ?? '';
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const { error: insertErr } = await supabase.from('user_profiles').insert([
+        const { error: insertErr } = await supabase.from('user_profiles').upsert(
           {
             id: u.id,
-            username: usernameFromMeta,
+            username: metaUsername,
             email,
             available_balance: 0,
             total_deposited: 0,
@@ -44,10 +41,11 @@ const email = u.email ?? '';
             total_profit: 0,
             role: 'user',
           },
-        ]);
+          { onConflict: 'id' }
+        );
 
         if (!insertErr) {
-          console.info('Created user profile for', u.id);
+          console.info('Created or updated user profile for', u.id);
           return;
         }
 
@@ -162,7 +160,6 @@ const email = u.email ?? '';
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        // ✅ Show error message if login fails
         setErrorMessage('❌ Incorrect email or password. Please try again.');
         setShowError(true);
         setTimeout(() => {
@@ -176,7 +173,6 @@ const email = u.email ?? '';
     }
   };
 
-  // ✅ Updated signUp (spinner removed, success toast added)
   const signUp = async (email: string, password: string, username: string) => {
     setSuccessMessage(null);
     try {
@@ -192,11 +188,9 @@ const email = u.email ?? '';
 
       if (error) throw error;
 
-      // ✅ Show success message toast
       setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
       setShowMessage(true);
 
-      // Auto-hide after 5 seconds
       setTimeout(() => {
         setShowMessage(false);
         setTimeout(() => setSuccessMessage(null), 500);
@@ -219,7 +213,6 @@ const email = u.email ?? '';
 
   return (
     <>
-      {/* ✅ Tailwind-style success toast (bottom-right) */}
       {successMessage && (
         <div
           className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
@@ -240,7 +233,6 @@ const email = u.email ?? '';
         </div>
       )}
 
-      {/* ❌ Tailwind-style error toast (bottom-right) */}
       {errorMessage && (
         <div
           className={`fixed bottom-6 right-6 bg-red-600 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
