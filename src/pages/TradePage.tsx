@@ -49,29 +49,72 @@ export const TradePage = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setBotConnected(false);
+      return;
+    }
+
+    const channel = supabase
+      .channel(`bot-status-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bot_connections',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const nextRow = payload.new ?? payload.old;
+          if (!nextRow || nextRow.bot_name !== 'trading_bot') return;
+          setBotConnected(Boolean(nextRow.is_connected));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const loadTrades = async () => {
+    if (!user?.id) return;
+
     const { data } = await supabase
       .from('trades')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .order('opened_at', { ascending: false });
 
     if (data) setTrades(data);
   };
 
   const loadBotStatus = async () => {
-    const { data } = await supabase
+    if (!user?.id) {
+      setBotConnected(false);
+      return;
+    }
+
+    const { data, error } = await supabase
       .from('bot_connections')
       .select('is_connected')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .eq('bot_name', 'trading_bot')
       .maybeSingle();
 
-    if (data) setBotConnected(data.is_connected);
+    if (error) {
+      console.error('Error loading bot status:', error.message);
+      return;
+    }
+
+    setBotConnected(Boolean(data?.is_connected));
   };
 
   // ✅ Automatically create a demo trade when bot connects
   const createMockTrade = async () => {
+    if (!user?.id) return;
+
     const pairs = ['EUR/USD', 'GBP/USD', 'XAU/USD', 'BTC/USD', 'ETH/USD'];
     const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
     const tradeType = Math.random() > 0.5 ? 'long' : 'short';
@@ -80,7 +123,7 @@ export const TradePage = () => {
     const amount = 100 + Math.random() * 900;
 
     const trade = {
-      user_id: user?.id,
+      user_id: user.id,
       trading_pair: randomPair,
       trade_type: tradeType,
       amount,
@@ -96,37 +139,53 @@ export const TradePage = () => {
     await loadTrades(); // refresh immediately
   };
 
+  const persistBotStatus = async (connected: boolean) => {
+    if (!user?.id) return;
+
+    const { error } = await supabase
+      .from('bot_connections')
+      .upsert(
+        {
+          user_id: user.id,
+          bot_name: 'trading_bot',
+          is_connected: connected,
+          connected_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,bot_name' }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    setBotConnected(connected);
+  };
+
   const handleConnectBot = async () => {
-    const { data: existing } = await supabase
+    if (!user?.id) return;
+
+    const { data: existing, error: existingError } = await supabase
       .from('bot_connections')
       .select('*')
-      .eq('user_id', user?.id)
+      .eq('user_id', user.id)
       .eq('bot_name', 'trading_bot')
       .maybeSingle();
 
-    if (existing) {
-      const newStatus = !existing.is_connected;
-      await supabase
-        .from('bot_connections')
-        .update({ is_connected: newStatus, connected_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      setBotConnected(newStatus);
+    if (existingError) {
+      console.error('Error checking bot status:', existingError.message);
+      return;
+    }
 
-      // ✅ When user newly connects, create a mock trade
-      if (!existing.is_connected && newStatus) {
+    const nextStatus = existing ? !existing.is_connected : true;
+
+    try {
+      await persistBotStatus(nextStatus);
+
+      if (nextStatus && !existing?.is_connected) {
         await createMockTrade();
       }
-    } else {
-      await supabase
-        .from('bot_connections')
-        .insert({
-          user_id: user?.id,
-          bot_name: 'trading_bot',
-          is_connected: true,
-          connected_at: new Date().toISOString(),
-        });
-      setBotConnected(true);
-      await createMockTrade();
+    } catch (error: any) {
+      console.error('Bot connection update failed:', error.message);
     }
 
     setShowConnectModal(false);
