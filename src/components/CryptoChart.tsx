@@ -1,148 +1,262 @@
 import { useEffect, useState } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts';
 
-interface PriceData {
+interface CandleData {
   date: string;
-  bitcoin: number;
-  ethereum: number;
-  gold: number;
-  silver: number;
-  eur: number;
-  gbp: number;
-  usd: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
 }
+
+type MarketPair =
+  | 'BTC/USD'
+  | 'ETH/USD'
+  | 'EUR/USD'
+  | 'GBP/USD'
+  | 'USD/JPY'
+  | 'AUD/USD'
+  | 'XAU/USD';
+
+const MARKET_PAIRS: Array<{
+  key: MarketPair;
+  type: 'crypto' | 'fx';
+  id?: string;
+  from?: string;
+  to?: string;
+  quote?: string;
+}> = [
+  { key: 'BTC/USD', type: 'crypto', id: 'bitcoin', quote: 'usd' },
+  { key: 'ETH/USD', type: 'crypto', id: 'ethereum', quote: 'usd' },
+  { key: 'EUR/USD', type: 'fx', from: 'EUR', to: 'USD' },
+  { key: 'GBP/USD', type: 'fx', from: 'GBP', to: 'USD' },
+  { key: 'USD/JPY', type: 'fx', from: 'USD', to: 'JPY' },
+  { key: 'AUD/USD', type: 'fx', from: 'AUD', to: 'USD' },
+  { key: 'XAU/USD', type: 'crypto', id: 'gold', quote: 'usd' },
+];
 
 const REFRESH_MS = 60_000;
 
-const formatDateLabel = (timestamp: number) =>
-  new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const buildFallbackData = (latest: {
-  bitcoin: number;
-  ethereum: number;
-  gold: number;
-  silver: number;
-  eur: number;
-  gbp: number;
-}): PriceData[] => {
-  const today = Date.now();
+const buildFallbackData = (pair: MarketPair): CandleData[] => {
+  const base = {
+    'BTC/USD': { open: 62000, high: 64000, low: 60000, close: 62800 },
+    'ETH/USD': { open: 3100, high: 3300, low: 3000, close: 3210 },
+    'EUR/USD': { open: 1.08, high: 1.1, low: 1.07, close: 1.09 },
+    'GBP/USD': { open: 1.27, high: 1.29, low: 1.25, close: 1.28 },
+    'USD/JPY': { open: 149, high: 151, low: 148, close: 150 },
+    'AUD/USD': { open: 0.66, high: 0.67, low: 0.65, close: 0.66 },
+    'XAU/USD': { open: 2320, high: 2385, low: 2300, close: 2360 },
+  }[pair];
 
-  return Array.from({ length: 7 }, (_, index) => {
-    const daysAgo = 6 - index;
-    const date = new Date(today - daysAgo * 24 * 60 * 60 * 1000);
+  const values: CandleData[] = [];
+  let prev = base.open;
 
-    const btcFactor = 1 + ((index - 3) * 0.015);
-    const ethFactor = 1 + ((index - 3) * 0.018);
-    const goldFactor = 1 + ((index - 3) * 0.004);
-    const silverFactor = 1 + ((index - 3) * 0.006);
+  for (let i = 0; i < 7; i++) {
+    const drift = (Math.sin((i + 1) * 0.9) * 0.012) + (i - 3) * 0.0025;
+    const open = prev;
+    const close = open * (1 + drift);
+    const high = Math.max(open, close) * (1 + 0.01 + i * 0.001);
+    const low = Math.min(open, close) * (1 - 0.01 - i * 0.001);
 
-    return {
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      bitcoin: Number((latest.bitcoin * btcFactor).toFixed(2)),
-      ethereum: Number((latest.ethereum * ethFactor).toFixed(2)),
-      gold: Number((latest.gold * goldFactor).toFixed(2)),
-      silver: Number((latest.silver * silverFactor).toFixed(2)),
-      eur: Number((latest.eur * (1 + (index - 3) * 0.004)).toFixed(4)),
-      gbp: Number((latest.gbp * (1 + (index - 3) * 0.005)).toFixed(4)),
-      usd: 1,
-    };
-  });
+    values.push({
+      date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      open: Number(open.toFixed(4)),
+      high: Number(high.toFixed(4)),
+      low: Number(low.toFixed(4)),
+      close: Number(close.toFixed(4)),
+    });
+
+    prev = close;
+  }
+
+  return values;
+};
+
+const fetchCryptoCandleData = async (pair: MarketPair) => {
+  const config = MARKET_PAIRS.find((item) => item.key === pair);
+  if (!config || !config.id || !config.quote) {
+    return buildFallbackData(pair);
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/coins/${config.id}/ohlc?vs_currency=${config.quote}&days=7`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch market data');
+    }
+
+    const raw = await response.json();
+    const values = Array.isArray(raw) ? raw.slice(-7) : [];
+
+    if (!values.length) {
+      return buildFallbackData(pair);
+    }
+
+    return values.map(([timestamp, open, high, low, close], index) => ({
+      date: new Date(timestamp).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
+      open: Number(open),
+      high: Number(high),
+      low: Number(low),
+      close: Number(close),
+    }));
+  } catch (error) {
+    console.error(`Error loading ${pair} data`, error);
+    return buildFallbackData(pair);
+  }
+};
+
+const fetchFxCandleData = async (pair: MarketPair) => {
+  const config = MARKET_PAIRS.find((item) => item.key === pair);
+  if (!config || !config.from || !config.to) {
+    return buildFallbackData(pair);
+  }
+
+  try {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 6);
+
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = end.toISOString().slice(0, 10);
+    const response = await fetch(
+      `https://api.frankfurter.app/${startStr}..${endStr}?from=${config.from}&to=${config.to}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch FX data');
+    }
+
+    const json = await response.json();
+    const entries = Object.entries(json.rates || {}).slice(-7);
+
+    if (!entries.length) {
+      return buildFallbackData(pair);
+    }
+
+    let previous = Number(entries[0][1][config.to]);
+
+    return entries.map(([dateString, rates], index) => {
+      const rate = Number(rates[config.to]);
+      const open = previous;
+      const close = rate;
+      const drift = clamp(Math.abs(close - open) * 0.7, 0.0004, 0.02);
+      const high = Math.max(open, close) * (1 + drift);
+      const low = Math.min(open, close) * (1 - drift);
+
+      previous = close;
+
+      return {
+        date: new Date(dateString).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        open: Number(open.toFixed(6)),
+        high: Number(high.toFixed(6)),
+        low: Number(low.toFixed(6)),
+        close: Number(close.toFixed(6)),
+      };
+    });
+  } catch (error) {
+    console.error(`Error loading ${pair} FX data`, error);
+    return buildFallbackData(pair);
+  }
+};
+
+const fetchPairData = async (pair: MarketPair): Promise<CandleData[]> => {
+  const config = MARKET_PAIRS.find((item) => item.key === pair);
+  if (!config) {
+    return buildFallbackData(pair);
+  }
+
+  if (config.type === 'crypto') {
+    return fetchCryptoCandleData(pair);
+  }
+
+  return fetchFxCandleData(pair);
+};
+
+const CandleChart = ({ data }: { data: CandleData[] }) => {
+  const width = 960;
+  const height = 360;
+  const padding = 36;
+  const maxPrice = Math.max(...data.map((d) => d.high));
+  const minPrice = Math.min(...data.map((d) => d.low));
+  const priceRange = maxPrice - minPrice || 1;
+  const step = (width - padding * 2) / Math.max(data.length, 1);
+  const candleWidth = clamp(step * 0.62, 6, 18);
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" role="img" aria-label="Market candles">
+      {data.map((point, index) => {
+        const x = padding + index * step + step / 2;
+        const yOpen = padding + ((maxPrice - point.open) / priceRange) * (height - padding * 2);
+        const yClose = padding + ((maxPrice - point.close) / priceRange) * (height - padding * 2);
+        const yHigh = padding + ((maxPrice - point.high) / priceRange) * (height - padding * 2);
+        const yLow = padding + ((maxPrice - point.low) / priceRange) * (height - padding * 2);
+        const isUp = point.close >= point.open;
+        const color = isUp ? '#22c55e' : '#ef4444';
+        const bodyY = Math.min(yOpen, yClose);
+        const bodyHeight = Math.max(Math.abs(yClose - yOpen), 4);
+
+        return (
+          <g key={`${point.date}-${index}`}>
+            <line
+              x1={x}
+              x2={x}
+              y1={yHigh}
+              y2={yLow}
+              stroke={color}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+            />
+            <rect
+              x={x - candleWidth / 2}
+              y={bodyY}
+              width={candleWidth}
+              height={bodyHeight}
+              rx={3}
+              fill={color}
+              opacity={0.92}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
 };
 
 export const CryptoChart = () => {
-  const [data, setData] = useState<PriceData[]>([]);
+  const [selectedPair, setSelectedPair] = useState<MarketPair>('BTC/USD');
+  const [data, setData] = useState<CandleData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let ignore = false;
+    let isMounted = true;
 
     const loadData = async () => {
       setLoading(true);
 
       try {
-        const [btcUsdRes, btcEurRes, btcGbpRes, ethUsdRes, metalsRes] = await Promise.all([
-          fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7&interval=daily'),
-          fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=eur&days=7&interval=daily'),
-          fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=gbp&days=7&interval=daily'),
-          fetch('https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=7&interval=daily'),
-          fetch('https://api.coingecko.com/api/v3/simple/price?ids=gold,silver&vs_currencies=usd'),
-        ]);
-
-        const [btcUsdJson, btcEurJson, btcGbpJson, ethUsdJson, metalsJson] = await Promise.all([
-          btcUsdRes.json(),
-          btcEurRes.json(),
-          btcGbpRes.json(),
-          ethUsdRes.json(),
-          metalsRes.json(),
-        ]);
-
-        const btcUsdSeries = Array.isArray(btcUsdJson.prices) ? btcUsdJson.prices : [];
-        const btcEurSeries = Array.isArray(btcEurJson.prices) ? btcEurJson.prices : [];
-        const btcGbpSeries = Array.isArray(btcGbpJson.prices) ? btcGbpJson.prices : [];
-        const ethUsdSeries = Array.isArray(ethUsdJson.prices) ? ethUsdJson.prices : [];
-
-        const goldPrice = Number(metalsJson?.gold?.usd ?? 2350);
-        const silverPrice = Number(metalsJson?.silver?.usd ?? 28);
-
-        const values = Array.from({ length: 7 }, (_, index) => {
-          const btcUsdPoint = btcUsdSeries[index] ?? btcUsdSeries[btcUsdSeries.length - 1];
-          const btcEurPoint = btcEurSeries[index] ?? btcEurSeries[btcEurSeries.length - 1];
-          const btcGbpPoint = btcGbpSeries[index] ?? btcGbpSeries[btcGbpSeries.length - 1];
-          const ethUsdPoint = ethUsdSeries[index] ?? ethUsdSeries[ethUsdSeries.length - 1];
-
-          const tickTs = btcUsdPoint?.[0] ?? Date.now() - (6 - index) * 24 * 60 * 60 * 1000;
-          const btcUsd = Number(btcUsdPoint?.[1] ?? 0);
-          const btcEur = Number(btcEurPoint?.[1] ?? 0);
-          const btcGbp = Number(btcGbpPoint?.[1] ?? 0);
-          const ethUsd = Number(ethUsdPoint?.[1] ?? 0);
-
-          const eurRate = btcUsd && btcEur ? btcUsd / btcEur : 1.08;
-          const gbpRate = btcUsd && btcGbp ? btcUsd / btcGbp : 1.25;
-
-          const goldTrend = goldPrice * (1 + ((index - 3) * 0.003));
-          const silverTrend = silverPrice * (1 + ((index - 3) * 0.005));
-
-          return {
-            date: formatDateLabel(tickTs),
-            bitcoin: Number((btcUsd || 0).toFixed(2)),
-            ethereum: Number((ethUsd || 0).toFixed(2)),
-            gold: Number(goldTrend.toFixed(2)),
-            silver: Number(silverTrend.toFixed(2)),
-            eur: Number(eurRate.toFixed(4)),
-            gbp: Number(gbpRate.toFixed(4)),
-            usd: 1,
-          };
-        });
-
-        if (!ignore) {
-          setData(values);
+        const nextData = await fetchPairData(selectedPair);
+        if (isMounted) {
+          setData(nextData);
         }
       } catch (error) {
-        console.error('Error fetching market overview data:', error);
-
-        const fallback = buildFallbackData({
-          bitcoin: 62000,
-          ethereum: 3200,
-          gold: 2350,
-          silver: 28,
-          eur: 1.08,
-          gbp: 1.25,
-        });
-
-        if (!ignore) {
-          setData(fallback);
+        console.error('Error loading market overview data:', error);
+        if (isMounted) {
+          setData(buildFallbackData(selectedPair));
         }
       } finally {
-        if (!ignore) {
+        if (isMounted) {
           setLoading(false);
         }
       }
@@ -155,10 +269,10 @@ export const CryptoChart = () => {
     }, REFRESH_MS);
 
     return () => {
-      ignore = true;
+      isMounted = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [selectedPair]);
 
   if (loading) {
     return (
@@ -168,25 +282,45 @@ export const CryptoChart = () => {
     );
   }
 
+  const latest = data[data.length - 1];
+  const start = data[0];
+  const move = latest && start ? (((latest.close - start.open) / start.open) * 100) : 0;
+
   return (
     <div className="bg-[#13151f] p-6 rounded-xl border border-gray-800">
-      <h2 className="text-white text-xl font-semibold mb-6">7-Day Market Overview</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <h2 className="text-white text-xl font-semibold">7-Day Market Overview</h2>
 
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-          <XAxis dataKey="date" stroke="#888" />
-          <YAxis stroke="#888" />
-          <Tooltip contentStyle={{ backgroundColor: '#1a1d29', border: 'none' }} />
-          <Legend />
-          <Line type="monotone" dataKey="bitcoin" stroke="#f7931a" strokeWidth={2} name="BTC/USD" />
-          <Line type="monotone" dataKey="ethereum" stroke="#627eea" strokeWidth={2} name="ETH/USD" />
-          <Line type="monotone" dataKey="gold" stroke="#ffd700" strokeWidth={2} name="Gold" />
-          <Line type="monotone" dataKey="silver" stroke="#c0c0c0" strokeWidth={2} name="Silver" />
-          <Line type="monotone" dataKey="eur" stroke="#1e90ff" strokeWidth={2} name="EUR/USD" />
-          <Line type="monotone" dataKey="gbp" stroke="#32cd32" strokeWidth={2} name="GBP/USD" />
-        </LineChart>
-      </ResponsiveContainer>
+        <div className="flex flex-wrap gap-2">
+          {MARKET_PAIRS.map((pair) => (
+            <button
+              key={pair.key}
+              onClick={() => setSelectedPair(pair.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                selectedPair === pair.key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+              }`}
+            >
+              {pair.key}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-center justify-between text-sm">
+        <div className="text-gray-300">
+          <span className="text-gray-400">Pair:</span> <span className="font-semibold text-white">{selectedPair}</span>
+        </div>
+        <div className={`font-semibold ${move >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {move >= 0 ? '+' : ''}
+          {move.toFixed(2)}%
+        </div>
+      </div>
+
+      <div className="h-[420px] w-full">
+        <CandleChart data={data} />
+      </div>
     </div>
   );
 };
