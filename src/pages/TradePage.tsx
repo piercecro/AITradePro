@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Radio } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { CryptoChart } from '../components/CryptoChart';
 
 interface Trade {
   id: string;
@@ -119,6 +120,25 @@ export const TradePage = () => {
     await loadTrades();
   };
 
+  const handleTradeAction = (action: 'buy' | 'sell', item: { pair: string; name?: string }) => {
+    const entryPrice = 100 + Math.random() * 5000;
+    const amount = 100 + Math.random() * 900;
+    const newTrade: Trade = {
+      id: `${item.pair}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      trading_pair: item.pair,
+      trade_type: action === 'buy' ? 'long' : 'short',
+      amount,
+      entry_price: entryPrice,
+      exit_price: null,
+      profit_loss: 0,
+      status: 'active',
+      opened_at: new Date().toISOString(),
+      closed_at: null,
+    };
+
+    setTrades((current) => [newTrade, ...current]);
+  };
+
   const handleConnectBot = async () => {
     if (!user?.id) return;
 
@@ -199,6 +219,10 @@ export const TradePage = () => {
       <div className="max-w-7xl mx-auto p-6">
         <h1 className="text-white text-3xl font-bold mb-8">Trade</h1>
 
+        <div className="mb-8">
+          <CryptoChart />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2">
             <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
@@ -227,23 +251,42 @@ export const TradePage = () => {
                           : true
                       )
                       .map((item) => (
-                        <button
+                        <div
                           key={item.pair}
-                          className="w-full p-4 bg-[#1a1d29] rounded-lg hover:bg-[#1f2230] transition-colors flex items-center justify-between"
+                          className="w-full p-3 bg-[#1a1d29] rounded-lg hover:bg-[#1f2230] transition-colors flex items-center justify-between gap-3"
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex-shrink-0 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleTradeAction('buy', item)}
+                                className="px-3 py-1.5 rounded-md bg-green-600/90 hover:bg-green-500 text-white text-xs font-semibold transition-colors"
+                              >
+                                Buy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleTradeAction('sell', item)}
+                                className="px-3 py-1.5 rounded-md bg-red-600/90 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+                              >
+                                Sell
+                              </button>
+                            </div>
+
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
                               <span className="text-white font-bold text-sm">
                                 {item.pair.split('/')[0].substring(0, 2)}
                               </span>
                             </div>
-                            <div className="text-left">
-                              <div className="text-white font-semibold">{item.pair}</div>
-                              {item.name && <div className="text-gray-400 text-sm">{item.name}</div>}
+
+                            <div className="text-left min-w-0">
+                              <div className="text-white font-semibold truncate">{item.pair}</div>
+                              {item.name && <div className="text-gray-400 text-sm truncate">{item.name}</div>}
                             </div>
                           </div>
-                          <TrendingUp size={20} className="text-green-500" />
-                        </button>
+
+                          <TrendingUp size={20} className="text-green-500 flex-shrink-0" />
+                        </div>
                       ))}
                   </div>
                 ))}
