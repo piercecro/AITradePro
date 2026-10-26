@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, Wallet, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { CryptoChart } from '../components/CryptoChart';
 
 interface UserProfile {
   available_balance: number;
@@ -25,18 +24,83 @@ interface Deposit {
   created_at: string;
 }
 
+type MarketTab = 'Volume' | 'Top Gainers' | 'Top Losers' | 'New';
+
+interface MarketCoin {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  total_volume: number;
+  market_cap: number;
+  price_change_percentage_24h: number;
+}
+
+const marketTabs: MarketTab[] = ['Volume', 'Top Gainers', 'Top Losers', 'New'];
+
 export const DashboardPage = () => {
   const { user, loading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [showChat, setShowChat] = useState(false);
+  const [marketTab, setMarketTab] = useState<MarketTab>('Volume');
+  const [marketCoins, setMarketCoins] = useState<MarketCoin[]>([]);
+  const [marketLoading, setMarketLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       loadData();
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchMarketData();
+    const interval = window.setInterval(fetchMarketData, 60000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const fetchMarketData = async () => {
+    try {
+      setMarketLoading(true);
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h'
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch market data');
+      }
+
+      const data: MarketCoin[] = await response.json();
+      setMarketCoins(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Market data fetch error:', error);
+      setMarketCoins([]);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  const visibleMarketCoins = useMemo(() => {
+    const list = [...marketCoins];
+
+    switch (marketTab) {
+      case 'Top Gainers':
+        return list
+          .filter((coin) => Number(coin.price_change_percentage_24h) > 0)
+          .sort((a, b) => Number(b.price_change_percentage_24h) - Number(a.price_change_percentage_24h));
+      case 'Top Losers':
+        return list
+          .filter((coin) => Number(coin.price_change_percentage_24h) < 0)
+          .sort((a, b) => Number(a.price_change_percentage_24h) - Number(b.price_change_percentage_24h));
+      case 'New':
+        return list.sort((a, b) => Number(b.market_cap || 0) - Number(a.market_cap || 0));
+      case 'Volume':
+      default:
+        return list.sort((a, b) => Number(b.total_volume || 0) - Number(a.total_volume || 0));
+    }
+  }, [marketCoins, marketTab]);
 
   const loadData = async () => {
     const { data: profileData } = await supabase
@@ -73,9 +137,12 @@ export const DashboardPage = () => {
       minimumFractionDigits: 2,
     }).format(value);
 
-  const formatPercent = (value: number) => {
-    const sign = value >= 0 ? '+' : '-';
-    return `${sign}${Math.abs(value).toFixed(2)}%`;
+  const formatCompactCurrency = (value: number) => {
+    if (!value) return '$0';
+    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
+    return `$${value.toFixed(2)}`;
   };
 
   if (loading) {
@@ -94,27 +161,27 @@ export const DashboardPage = () => {
     );
   }
 
-  const portfolioValue = profile?.available_balance ?? 0;
-
   return (
     <div className="bg-[#edf3f8] p-5 lg:p-6">
       <div className="mx-auto max-w-[1360px]">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.8fr)_320px]">
           <section className="rounded-[18px] border border-[#dfe7f0] bg-[#f3f6fa] p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-medium text-slate-500">Portfolio value</div>
                 <div className="mt-2 text-5xl font-light tracking-[-0.08em] text-slate-800">
-                  ${formatCurrency(portfolioValue).replace('$', '')}
+                  ${formatCurrency(profile?.available_balance ?? 0).replace('$', '')}
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">1D</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">3D</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">1W</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">1M</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">3M</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50">1Y</button>
+                {['1D', '3D', '1W', '1M', '3M', '1Y'].map((tab) => (
+                  <button
+                    key={tab}
+                    className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-slate-500 hover:bg-slate-50"
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -134,9 +201,11 @@ export const DashboardPage = () => {
             <div className="mb-5 flex items-center justify-between">
               <div className="text-sm font-medium text-slate-500">Amount in Open Trades</div>
               <div className="flex items-center gap-2 text-sm text-slate-400">
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2 py-1 text-slate-500">1D</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2 py-1 text-slate-500">3D</button>
-                <button className="rounded-lg border border-[#dfe7f0] bg-white px-2 py-1 text-slate-500">1W</button>
+                {['1D', '3D', '1W'].map((tab) => (
+                  <button key={tab} className="rounded-lg border border-[#dfe7f0] bg-white px-2 py-1 text-slate-500">
+                    {tab}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="space-y-5">
@@ -203,14 +272,24 @@ export const DashboardPage = () => {
           </section>
         </div>
 
-        <section className="mt-6 rounded-[18px] border border-[#dfe7f0] bg-[#f3f6fa] shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-          <div className="flex items-center justify-between border-b border-[#dfe7f0] px-5 py-4">
+        <section className="mt-6 overflow-hidden rounded-[18px] border border-[#dfe7f0] bg-[#f3f6fa] shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+          <div className="flex flex-col gap-3 border-b border-[#dfe7f0] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="text-xl font-semibold text-slate-700">Market</div>
-            <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
-              <button className="rounded-t-lg border-b-2 border-[#1d73f5] px-2 py-2 text-sky-600">Volume</button>
-              <button className="px-2 py-2">Top Gainers</button>
-              <button className="px-2 py-2">Top Losers</button>
-              <button className="px-2 py-2">See all</button>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+              {marketTabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setMarketTab(tab)}
+                  className={`rounded-t-lg px-2 py-2 transition-colors ${
+                    marketTab === tab
+                      ? 'border-b-2 border-[#1d73f5] text-sky-600'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+              <button className="px-2 py-2 text-slate-500 hover:text-slate-700">See all</button>
             </div>
           </div>
 
@@ -223,15 +302,46 @@ export const DashboardPage = () => {
               <span className="text-right">24h volume</span>
             </div>
 
-            <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] items-center gap-4 px-5 py-4 text-sm text-slate-600">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#f8d24d] text-[10px] font-bold text-[#7a5200]">BTC</span>
-                <span className="font-medium text-slate-700">BULLA/USDT</span>
-              </div>
-              <div>0.15402</div>
-              <div className="text-emerald-500">+73.77%</div>
-              <div>$0.00</div>
-              <div className="text-right">$270.96M</div>
+            <div className="max-h-[360px] overflow-y-auto">
+              {marketLoading ? (
+                <div className="flex items-center justify-center py-12 text-sm text-slate-500">Loading market data...</div>
+              ) : visibleMarketCoins.length === 0 ? (
+                <div className="flex items-center justify-center py-12 text-sm text-slate-500">
+                  No market data available right now.
+                </div>
+              ) : (
+                visibleMarketCoins.map((coin, index) => {
+                  const change = Number(coin.price_change_percentage_24h ?? 0);
+                  const isPositive = change >= 0;
+
+                  return (
+                    <div
+                      key={`${coin.id}-${index}`}
+                      className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] items-center gap-4 border-b border-[#edf1f6] px-5 py-4 text-sm text-slate-600 last:border-b-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full object-cover" />
+                        <div className="font-medium text-slate-700">{coin.name}</div>
+                      </div>
+
+                      <div className="font-medium text-slate-700">${coin.current_price.toFixed(4)}</div>
+
+                      <div className={isPositive ? 'text-emerald-500' : 'text-rose-500'}>
+                        {isPositive ? '+' : ''}
+                        {change.toFixed(2)}%
+                      </div>
+
+                      <div>
+                        ${coin.market_cap ? (coin.market_cap / 1_000_000).toFixed(2) : '0.00'}M
+                      </div>
+
+                      <div className="text-right font-medium text-slate-700">
+                        {formatCompactCurrency(coin.total_volume)}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </section>
