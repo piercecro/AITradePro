@@ -1,61 +1,97 @@
-import { Home, Wallet, TrendingUp, Settings, Users, Shield } from 'lucide-react';
+import {
+  Home,
+  Wallet,
+  TrendingUp,
+  Settings,
+  Users,
+  Shield,
+  ArrowLeftRight,
+  BarChart3,
+  Briefcase,
+  Bell,
+  Activity,
+} from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
-  isAdmin?: boolean; // ✅ new prop
+  isAdmin?: boolean;
 }
 
 const navItems = [
   { icon: Home, label: 'Dashboard', value: 'dashboard' },
-  { icon: Wallet, label: 'Balance', value: 'balance' },
-  { icon: TrendingUp, label: 'Trade', value: 'trade' },
+  { icon: Wallet, label: 'Trades', value: 'trade' },
+  { icon: TrendingUp, label: 'Portfolio', value: 'balance' },
+  { icon: BarChart3, label: 'Signals', value: 'dashboard' },
+  { icon: Briefcase, label: 'Accounts', value: 'account' },
+  { icon: ArrowLeftRight, label: 'Trading View', value: 'trade' },
+];
+
+const secondGroup = [
+  { icon: Activity, label: 'Signals', value: 'dashboard' },
+  { icon: Bell, label: 'Watchlist', value: 'dashboard' },
+  { icon: Users, label: 'My Groups', value: 'referral' },
   { icon: Settings, label: 'Settings', value: 'settings' },
-  { icon: Users, label: 'Referral', value: 'referral' },
 ];
 
 export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
   return (
-    <aside className="fixed left-0 top-0 h-full w-16 bg-[#0f1117] border-r border-gray-800 flex flex-col items-center py-6 z-50">
-      {/* ✅ App logo placeholder (optional) */}
-      <div className="mb-8">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center font-bold text-white text-lg">
-          A
+    <aside className="fixed left-0 top-0 h-full w-[230px] border-r border-[#dfe7f0] bg-[#f7f9fc] px-4 py-5">
+      <div className="mb-7 flex items-center gap-3 px-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f172a] text-[10px] font-bold text-white">
+          C
         </div>
+        <div className="text-[28px] font-black tracking-[-0.08em] text-slate-900">cornix</div>
       </div>
 
-      {/* Normal navigation items */}
-      <nav className="flex flex-col items-center space-y-3">
+      <nav className="space-y-1">
         {navItems.map((item) => (
           <button
-            key={item.value}
+            key={item.value + item.label}
             onClick={() => onNavigate(item.value)}
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
               currentPage === item.value
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
+                : 'text-slate-600 hover:bg-white hover:text-slate-800'
             }`}
-            title={item.label}
           >
-            <item.icon size={20} />
+            <item.icon size={16} />
+            <span>{item.label}</span>
           </button>
         ))}
       </nav>
 
-      {/* ✅ Admin-only button */}
-      {isAdmin && (
-        <button
-          onClick={() => onNavigate('admin')}
-          className={`w-10 h-10 rounded-lg flex items-center justify-center mt-auto mb-4 transition-colors ${
-            currentPage === 'admin'
-              ? 'bg-yellow-600 text-white'
-              : 'text-yellow-400 hover:text-white hover:bg-gray-800'
-          }`}
-          title="Admin Panel"
-        >
-          <Shield size={20} />
-        </button>
-      )}
+      <div className="mt-5 border-t border-[#e2eaf2] pt-4">
+        <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          Monitoring
+        </div>
+        <nav className="space-y-1">
+          {secondGroup.map((item) => (
+            <button
+              key={item.value + item.label}
+              onClick={() => onNavigate(item.value)}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition-colors hover:bg-white hover:text-slate-800"
+            >
+              <item.icon size={16} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="mt-auto pt-5">
+        {isAdmin && (
+          <button
+            onClick={() => onNavigate('admin')}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+              currentPage === 'admin' ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:bg-white'
+            }`}
+          >
+            <Shield size={16} />
+            <span>Admin Panel</span>
+          </button>
+        )}
+      </div>
     </aside>
   );
 };

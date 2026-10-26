@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Settings, MessageCircle, Globe } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Bell, Plus, CreditCard, ArrowUp, ArrowDown, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,112 +16,102 @@ export const Header = ({ onNavigate }: HeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-16 right-0 h-16 bg-[#0f1117] border-b border-gray-800 flex items-center justify-between px-6 z-40">
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-xl">A</span>
-        </div>
-        <span className="text-white text-xl font-semibold">AITradePro</span>
+    <header className="fixed top-0 left-[230px] right-0 h-[72px] bg-white border-b border-[#dfe7f0] flex items-center justify-between px-5 z-40 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
+      <div className="flex items-center gap-4 min-w-0">
+        <button className="flex h-8 w-8 items-center justify-center rounded-md border border-[#dfe7f0] bg-white text-slate-500 hover:bg-slate-50">
+          <ChevronLeft size={16} />
+        </button>
+
+        <nav className="flex items-center gap-2 rounded-xl border border-[#e1e7ef] bg-[#f7f9fc] p-1">
+          {['Dashboard', 'Live Trading', 'Demo'].map((tab, index) => (
+            <button
+              key={tab}
+              onClick={() => onNavigate(index === 0 ? 'dashboard' : 'trade')}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                index === 0
+                  ? 'bg-white text-slate-700 shadow-sm ring-1 ring-[#e5edf5]'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2 bg-gray-800 rounded-lg px-3 py-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-white text-sm font-medium">3</span>
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 rounded-xl border border-[#e4ebf4] bg-[#f7f9fc] px-2 py-1.5">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#f7931a]" />
+            <span>BTC/USD</span>
+          </div>
+          <span className="text-[11px] text-slate-500">80,104.28</span>
+          <span className="text-[11px] text-emerald-500">-0.62%</span>
         </div>
+
+        <div className="flex items-center gap-3 rounded-xl border border-[#e4ebf4] bg-[#f7f9fc] px-2 py-1.5">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#26a17b]" />
+            <span>ETH/USD</span>
+          </div>
+          <span className="text-[11px] text-slate-500">2,319.61</span>
+          <span className="text-[11px] text-emerald-500">+1.49%</span>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-xl border border-[#e4ebf4] bg-[#f7f9fc] px-2 py-1.5">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-slate-600">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#7c8cff]" />
+            <span>ADA/USD</span>
+          </div>
+          <span className="text-[11px] text-slate-500">0.2061</span>
+          <span className="text-[11px] text-emerald-500">+0.05%</span>
+        </div>
+
+        <button className="rounded-xl border border-[#dfe7f0] bg-[#f6f9ff] px-4 py-2 text-sm font-semibold text-[#1267d1] hover:bg-[#edf5ff]">
+          Upgrade
+        </button>
+
+        <button className="flex items-center gap-2 rounded-xl bg-[#1d73f5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#1667d8]">
+          <Plus size={15} />
+          Create Bot
+        </button>
+
+        <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dfe7f0] bg-[#f8fafc] text-slate-700 hover:bg-slate-100">
+          <Wallet size={16} />
+        </button>
 
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center space-x-2 bg-gray-800 rounded-lg px-3 py-2 hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-[#f8fafc] px-2 py-1.5 hover:bg-slate-100"
             aria-label="Open user menu"
           >
-            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-semibold">
-                {user?.email?.[0].toUpperCase()}
-              </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-xs font-semibold text-white">
+              {user?.email?.[0]?.toUpperCase() || 'U'}
             </div>
-            <span className="hidden sm:inline text-white text-sm">{user?.email?.split('@')[0]}</span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown size={14} className="text-slate-500" />
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1d29] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl border border-[#dfe7f0] bg-white shadow-lg">
               <button
                 onClick={() => handleMenuClick('account')}
-                className="w-full px-4 py-3 text-left text-white hover:bg-gray-800 transition-colors flex items-center space-x-3"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50"
               >
-                <Users size={18} />
+                <CreditCard size={16} />
                 <span>My account</span>
               </button>
               <button
                 onClick={signOut}
-                className="w-full px-4 py-3 text-left text-white hover:bg-gray-800 transition-colors flex items-center space-x-3 border-t border-gray-700"
+                className="flex w-full items-center gap-3 border-t border-[#edf1f6] px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50"
               >
-                <LogOut size={18} />
+                <ArrowUp size={16} />
                 <span>Logout</span>
               </button>
             </div>
           )}
         </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            aria-label="Notifications"
-            className="relative p-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-
-          <button aria-label="Settings" className="p-2 text-gray-400 hover:text-white transition-colors">
-            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-
-          <button aria-label="Messages" className="p-2 text-gray-400 hover:text-white transition-colors">
-            <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-
-          <button aria-label="Language" className="flex items-center space-x-2 p-2 text-gray-400 hover:text-white transition-colors">
-            <Globe className="w-5 h-5 sm:w-6 sm:h-6" />
-            <span className="hidden sm:inline text-sm">EN</span>
-            <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
-          </button>
-        </div>
       </div>
     </header>
   );
 };
-
-const Users = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-
-const CreditCard = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-    <line x1="1" y1="10" x2="23" y2="10" />
-  </svg>
-);
-
-const HelpCircle = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
-  </svg>
-);
-
-const LogOut = ({ size }: { size: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
