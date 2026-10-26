@@ -21,6 +21,14 @@ interface BotConnection {
   is_connected: boolean;
 }
 
+interface BotPairPick {
+  pair: string;
+  name?: string;
+  category: string;
+  signal: 'buy' | 'sell';
+  confidence: number;
+}
+
 const tradingPairs = [
   { pair: 'USD/EUR', category: 'Forex' },
   { pair: 'USD/GBP', category: 'Forex' },
@@ -34,6 +42,20 @@ const tradingPairs = [
   { pair: 'DJI', name: 'Dow Jones', category: 'Indices' },
   { pair: 'NASDAQ', name: 'NASDAQ', category: 'Indices' },
   { pair: 'FTSE', name: 'FTSE 100', category: 'Indices' },
+  { pair: 'BTC/USD', name: 'Bitcoin', category: 'Crypto' },
+  { pair: 'ETH/USD', name: 'Ethereum', category: 'Crypto' },
+  { pair: 'SOL/USD', name: 'Solana', category: 'Crypto' },
+  { pair: 'BNB/USD', name: 'BNB', category: 'Crypto' },
+  { pair: 'XRP/USD', name: 'XRP', category: 'Crypto' },
+  { pair: 'ADA/USD', name: 'Cardano', category: 'Crypto' },
+  { pair: 'DOGE/USD', name: 'Dogecoin', category: 'Crypto' },
+  { pair: 'AVAX/USD', name: 'Avalanche', category: 'Crypto' },
+  { pair: 'LINK/USD', name: 'Chainlink', category: 'Crypto' },
+  { pair: 'DOT/USD', name: 'Polkadot', category: 'Crypto' },
+  { pair: 'MATIC/USD', name: 'Polygon', category: 'Crypto' },
+  { pair: 'TRX/USD', name: 'TRON', category: 'Crypto' },
+  { pair: 'ATOM/USD', name: 'Cosmos', category: 'Crypto' },
+  { pair: 'LTC/USD', name: 'Litecoin', category: 'Crypto' },
 ];
 
 export const TradePage = () => {
@@ -42,6 +64,7 @@ export const TradePage = () => {
   const [botConnected, setBotConnected] = useState(false);
   const [selectedPair, setSelectedPair] = useState('');
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const [botPairs, setBotPairs] = useState<BotPairPick[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -52,6 +75,32 @@ export const TradePage = () => {
 
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (!botConnected) {
+      setBotPairs([]);
+      return;
+    }
+
+    const pick = () => {
+      const shuffled = [...tradingPairs]
+        .filter((item) => item.pair && (item.category === 'Crypto' || item.category === 'Forex' || item.category === 'Commodities'))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.floor(Math.random() * 5) + 4);
+
+      const picks: BotPairPick[] = shuffled.map((item) => ({
+        pair: item.pair,
+        name: item.name,
+        category: item.category,
+        signal: Math.random() > 0.5 ? 'buy' : 'sell',
+        confidence: Math.floor(Math.random() * 20) + 80,
+      }));
+
+      setBotPairs(picks);
+    };
+
+    pick();
+  }, [botConnected]);
 
   const loadTrades = async () => {
     if (!user?.id) return;
@@ -239,7 +288,7 @@ export const TradePage = () => {
               </div>
 
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {['Forex', 'Commodities', 'Indices'].map((category) => (
+                {['Forex', 'Commodities', 'Indices', 'Crypto'].map((category) => (
                   <div key={category}>
                     <div className="text-gray-400 text-sm font-semibold mb-2 mt-4">{category}</div>
                     {tradingPairs
@@ -409,6 +458,59 @@ export const TradePage = () => {
               </table>
             </div>
           )}
+
+          {botConnected && botPairs.length > 0 && (
+            <div className="mt-8 border-t border-gray-800 pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white text-lg font-semibold">Bot Picks</h3>
+                <span className="text-xs uppercase tracking-[0.16em] text-gray-400">
+                  {botPairs.length} pairs
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {botPairs.map((item) => (
+                  <div key={`${item.pair}-${item.signal}`} className="rounded-lg border border-gray-800 bg-[#161b26] p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="text-white font-medium">{item.pair}</div>
+                        {item.name && <div className="text-gray-400 text-xs">{item.name}</div>}
+                      </div>
+                      <span
+                        className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                          item.signal === 'buy' ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                        }`}
+                      >
+                        {item.signal}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>{item.category}</span>
+                      <span>{item.confidence}% confidence</span>
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTradeAction('buy', { pair: item.pair, name: item.name })}
+                        className="flex-1 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-500"
+                      >
+                        Buy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleTradeAction('sell', { pair: item.pair, name: item.name })}
+                        className="flex-1 rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500"
+                      >
+                        Sell
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {showConnectModal && (
@@ -445,3 +547,5 @@ export const TradePage = () => {
     </div>
   );
 };
+
+export default TradePage;
