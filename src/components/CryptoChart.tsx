@@ -18,6 +18,7 @@ type MarketPair =
   | 'XAU/USD';
 
 type Timeframe = '7D' | '30D' | '90D';
+type TradingTool = 'Crosshair' | 'Trend' | 'Indicators' | 'Measure';
 
 const MARKET_PAIRS: Array<{
   key: MarketPair;
@@ -37,6 +38,7 @@ const MARKET_PAIRS: Array<{
 ];
 
 const RANGE_OPTIONS: Timeframe[] = ['7D', '30D', '90D'];
+const TOOL_OPTIONS: TradingTool[] = ['Crosshair', 'Trend', 'Indicators', 'Measure'];
 const REFRESH_MS = 60_000;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -66,7 +68,7 @@ const buildFallbackData = (pair: MarketPair, days: number): CandleData[] => {
   let prev = base.open;
 
   for (let i = 0; i < days; i++) {
-    const drift = (Math.sin((i + 1) * 0.9) * 0.012) + (i - (days / 2)) * 0.002;
+    const drift = (Math.sin((i + 1) * 0.9) * 0.012) + (i - days / 2) * 0.002;
     const open = prev;
     const close = open * (1 + drift);
     const high = Math.max(open, close) * (1 + 0.01 + i * 0.001);
@@ -202,11 +204,13 @@ const CandleChart = ({
   selectedPair,
   hoverIndex,
   setHoverIndex,
+  activeTool,
 }: {
   data: CandleData[];
   selectedPair: MarketPair;
   hoverIndex: number | null;
   setHoverIndex: (value: number | null) => void;
+  activeTool: TradingTool;
 }) => {
   const width = 960;
   const height = 360;
@@ -240,6 +244,7 @@ const CandleChart = ({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full"
+        style={{ cursor: activeTool === 'Crosshair' ? 'crosshair' : 'default' }}
         role="img"
         aria-label="Market candles"
         onMouseMove={(event) => {
@@ -323,6 +328,9 @@ export const CryptoChart = () => {
   const [data, setData] = useState<CandleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [activeTool, setActiveTool] = useState<TradingTool>('Crosshair');
+  const [tradeSide, setTradeSide] = useState<'Buy' | 'Sell'>('Buy');
+  const [tradeVolume, setTradeVolume] = useState<number>(0.5);
 
   useEffect(() => {
     let isMounted = true;
@@ -377,11 +385,65 @@ export const CryptoChart = () => {
   const pointerPrice = hoverIndex !== null && data[hoverIndex] ? data[hoverIndex].close : latest?.close ?? 0;
   const pointerLabel = hoverIndex !== null && data[hoverIndex] ? data[hoverIndex].date : 'Live';
 
+  const actionButtonClass = (side: 'Buy' | 'Sell') => {
+    const active = tradeSide === side;
+    const base = 'px-4 py-2 rounded-md text-sm font-semibold transition-colors';
+    return active
+      ? side === 'Buy'
+        ? `${base} bg-green-600 text-white shadow-lg shadow-green-900/40`
+        : `${base} bg-red-600 text-white shadow-lg shadow-red-900/40`
+      : `${base} bg-[#1a1d29] text-gray-300 hover:bg-[#242b38]`;
+  };
+
   return (
-    <div className="bg-[#13151f] p-6 rounded-xl border border-gray-800">
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h2 className="text-white text-xl font-semibold">7-Day Market Overview</h2>
+    <div className="bg-[#13151f] p-6 rounded-xl border border-gray-800 shadow-2xl shadow-slate-950/40">
+      <div className="mb-5 flex flex-col gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 px-3 py-2 text-sm font-bold text-white">
+              {selectedPair}
+            </div>
+            <div>
+              <div className="text-gray-400 text-xs uppercase tracking-widest">Market</div>
+              <div className="text-white text-xl font-semibold">{selectedPair}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-5 text-sm flex-wrap">
+            <div className="text-gray-300">
+              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Last</div>
+              <div className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</div>
+            </div>
+            <div className="text-gray-300">
+              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Change</div>
+              <div className={`font-semibold ${move >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {move >= 0 ? '+' : ''}
+                {move.toFixed(2)}%
+              </div>
+            </div>
+            <div className="text-gray-300">
+              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Hover</div>
+              <div className="text-white font-semibold">{formatPrice(pointerPrice, selectedPair)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {TOOL_OPTIONS.map((tool) => (
+              <button
+                key={tool}
+                onClick={() => setActiveTool(tool)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  activeTool === tool
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                }`}
+              >
+                {tool}
+              </button>
+            ))}
+          </div>
 
           <div className="flex items-center gap-2">
             {RANGE_OPTIONS.map((range) => (
@@ -400,54 +462,112 @@ export const CryptoChart = () => {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {MARKET_PAIRS.map((pair) => (
-              <button
-                key={pair.key}
-                onClick={() => setSelectedPair(pair.key)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  selectedPair === pair.key
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
-                }`}
-              >
-                {pair.key}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {MARKET_PAIRS.map((pair) => (
+            <button
+              key={pair.key}
+              onClick={() => setSelectedPair(pair.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                selectedPair === pair.key
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+              }`}
+            >
+              {pair.key}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <div className="flex items-center gap-6 text-sm">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+        <div className="rounded-xl border border-gray-800 bg-[#10141d] p-3">
+          <div className="mb-3 flex items-center justify-between text-sm">
             <div className="text-gray-300">
-              <span className="text-gray-400">Last:</span>{' '}
-              <span className="font-semibold text-white">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
+              <span className="text-gray-400">Hovered:</span>{' '}
+              <span className="font-semibold text-white">{formatPrice(pointerPrice, selectedPair)}</span>
             </div>
-            <div className={`font-semibold ${move >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {move >= 0 ? '+' : ''}
-              {move.toFixed(2)}%
+            <div className="text-gray-400">{pointerLabel}</div>
+          </div>
+
+          <CandleChart
+            data={data}
+            selectedPair={selectedPair}
+            hoverIndex={hoverIndex}
+            setHoverIndex={setHoverIndex}
+            activeTool={activeTool}
+          />
+        </div>
+
+        <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Order Ticket</div>
+              <div className="text-white text-lg font-semibold">{selectedPair}</div>
+            </div>
+            <div className="rounded-full border border-gray-700 bg-[#1a1d29] px-2 py-1 text-xs text-gray-300">
+              {selectedRange}
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mb-3 flex items-center justify-between text-sm">
-        <div className="text-gray-300">
-          <span className="text-gray-400">Hover:</span>{' '}
-          <span className="font-semibold text-white">{formatPrice(pointerPrice, selectedPair)}</span>
-        </div>
-        <div className="text-gray-400">{pointerLabel}</div>
-      </div>
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setTradeSide('Buy')} className={actionButtonClass('Buy')}>
+              Buy
+            </button>
+            <button type="button" onClick={() => setTradeSide('Sell')} className={actionButtonClass('Sell')}>
+              Sell
+            </button>
+          </div>
 
-      <div className="h-[420px] w-full">
-        <CandleChart
-          data={data}
-          selectedPair={selectedPair}
-          hoverIndex={hoverIndex}
-          setHoverIndex={setHoverIndex}
-        />
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+              <span className="text-gray-400">Price</span>
+              <span className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+              <span className="text-gray-400">Volume</span>
+              <input
+                type="number"
+                min={0.01}
+                step={0.01}
+                value={tradeVolume}
+                onChange={(e) => setTradeVolume(Number(e.target.value) || 0.01)}
+                className="w-20 bg-transparent text-right text-white outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+              <span className="text-gray-400">Estimated</span>
+              <span className="text-white font-semibold">
+                {formatCurrency((latest?.close ?? 0) * tradeVolume)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              className={`flex-1 rounded-lg px-4 py-3 text-sm font-semibold transition ${
+                tradeSide === 'Buy'
+                  ? 'bg-green-600 hover:bg-green-500 text-white'
+                  : 'bg-red-600 hover:bg-red-500 text-white'
+              }`}
+            >
+              {tradeSide} {selectedPair}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 
 export default CryptoChart;
