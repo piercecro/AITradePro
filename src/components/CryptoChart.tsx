@@ -11,6 +11,54 @@ interface CandleData {
 type MarketPair =
   | 'BTC/USD'
   | 'ETH/USD'
+  | 'SOL/USD'
+  | 'BNB/USD'
+  | 'XRP/USD'
+  | 'ADA/USD'
+  | 'DOGE/USD'
+  | 'AVAX/USD'
+  | 'LINK/USD'
+  | 'MATIC/USD'
+  | 'DOT/USD'
+  | 'TRX/USD'
+  | 'NEAR/USD'
+  | 'ATOM/USD'
+  | 'LTC/USD'
+  | 'BCH/USD'
+  | 'UNI/USD'
+  | 'APT/USD'
+  | 'ARB/USD'
+  | 'OP/USD'
+  | 'SUI/USD'
+  | 'FIL/USD'
+  | 'ALGO/USD'
+  | 'EOS/USD'
+  | 'TAO/USD'
+  | 'WIF/USD'
+  | 'PEPE/USD'
+  | 'BONK/USD'
+  | 'RNDR/USD'
+  | 'ICP/USD'
+  | 'FTM/USD'
+  | 'THETA/USD'
+  | 'XTZ/USD'
+  | 'VET/USD'
+  | 'INJ/USD'
+  | 'GRT/USD'
+  | 'HBAR/USD'
+  | 'KAS/USD'
+  | 'FET/USD'
+  | 'AAVE/USD'
+  | 'SAND/USD'
+  | 'MANA/USD'
+  | 'CHZ/USD'
+  | 'IMX/USD'
+  | 'FLOW/USD'
+  | 'EGLD/USD'
+  | 'DYDX/USD'
+  | 'ZIL/USD'
+  | 'MASK/USD'
+  | 'ENJ/USD'
   | 'EUR/USD'
   | 'GBP/USD'
   | 'USD/JPY'
@@ -22,22 +70,75 @@ type TradingTool = 'Crosshair' | 'Trend' | 'Indicators' | 'Measure';
 type ChartMode = 'Candles' | 'Line';
 type IndicatorMode = 'None' | 'MA' | 'RSI' | 'MACD';
 
-const MARKET_PAIRS: Array<{
-  key: MarketPair;
-  type: 'crypto' | 'fx';
-  id?: string;
-  from?: string;
-  to?: string;
-  quote?: string;
-}> = [
-  { key: 'BTC/USD', type: 'crypto', id: 'bitcoin', quote: 'usd' },
-  { key: 'ETH/USD', type: 'crypto', id: 'ethereum', quote: 'usd' },
-  { key: 'EUR/USD', type: 'fx', from: 'EUR', to: 'USD' },
-  { key: 'GBP/USD', type: 'fx', from: 'GBP', to: 'USD' },
-  { key: 'USD/JPY', type: 'fx', from: 'USD', to: 'JPY' },
-  { key: 'AUD/USD', type: 'fx', from: 'AUD', to: 'USD' },
-  { key: 'XAU/USD', type: 'crypto', id: 'gold', quote: 'usd' },
+const DEFAULT_CRYPTO_PAIRS = [
+  { key: 'BTC/USD', name: 'Bitcoin', market: 'Major', id: 'bitcoin', quote: 'usd', description: 'The original digital store of value and the benchmark crypto asset.' },
+  { key: 'ETH/USD', name: 'Ethereum', market: 'Major', id: 'ethereum', quote: 'usd', description: 'Smart-contract platform powering DeFi, NFT, and blockchain apps.' },
+  { key: 'SOL/USD', name: 'Solana', market: 'Layer 1', id: 'solana', quote: 'usd', description: 'High-speed Layer 1 blockchain focused on scalability and low fees.' },
+  { key: 'BNB/USD', name: 'BNB', market: 'Exchange', id: 'binancecoin', quote: 'usd', description: 'Utility token for Binance ecosystem and transaction flow.' },
+  { key: 'XRP/USD', name: 'XRP', market: 'Payments', id: 'ripple', quote: 'usd', description: 'Cross-border payment token designed for fast settlement.' },
+  { key: 'ADA/USD', name: 'Cardano', market: 'Layer 1', id: 'cardano', quote: 'usd', description: 'Research-driven blockchain with staking and smart contracts.' },
+  { key: 'DOGE/USD', name: 'Dogecoin', market: 'Meme', id: 'dogecoin', quote: 'usd', description: 'Popular meme coin with broad retail trading attention.' },
+  { key: 'AVAX/USD', name: 'Avalanche', market: 'Layer 1', id: 'avalanche-2', quote: 'usd', description: 'High-throughput blockchain ecosystem with subnets and DeFi.' },
+  { key: 'LINK/USD', name: 'Chainlink', market: 'Oracle', id: 'chainlink', quote: 'usd', description: 'Decentralized oracle network connecting blockchains to real-world data.' },
+  { key: 'MATIC/USD', name: 'Polygon', market: 'Layer 2', id: 'matic-network', quote: 'usd', description: 'Ethereum scaling network focused on faster and cheaper transactions.' },
+  { key: 'DOT/USD', name: 'Polkadot', market: 'Layer 1', id: 'polkadot', quote: 'usd', description: 'Interoperability network linking multiple blockchains together.' },
+  { key: 'TRX/USD', name: 'TRON', market: 'Payments', id: 'tron', quote: 'usd', description: 'Blockchain focused on media, entertainment, and staking ecosystems.' },
+  { key: 'NEAR/USD', name: 'NEAR Protocol', market: 'Layer 1', id: 'near', quote: 'usd', description: 'Developer-friendly blockchain built for speed and usability.' },
+  { key: 'ATOM/USD', name: 'Cosmos', market: 'Interoperability', id: 'cosmos', quote: 'usd', description: 'Internet of blockchains project enabling cross-chain communication.' },
+  { key: 'LTC/USD', name: 'Litecoin', market: 'Major', id: 'litecoin', quote: 'usd', description: 'Lightweight Bitcoin alternative optimized for speed and efficiency.' },
+  { key: 'BCH/USD', name: 'Bitcoin Cash', market: 'Major', id: 'bitcoin-cash', quote: 'usd', description: 'Bitcoin fork focused on scalable payments and lower fees.' },
+  { key: 'UNI/USD', name: 'Uniswap', market: 'DeFi', id: 'uniswap', quote: 'usd', description: 'Leading decentralized exchange protocol with automated market making.' },
+  { key: 'APT/USD', name: 'Aptos', market: 'Layer 1', id: 'aptos', quote: 'usd', description: 'Move-based blockchain engineered for performance and developer tooling.' },
+  { key: 'ARB/USD', name: 'Arbitrum', market: 'Layer 2', id: 'arbitrum', quote: 'usd', description: 'Ethereum layer-two scaling network known for lower gas costs.' },
+  { key: 'OP/USD', name: 'Optimism', market: 'Layer 2', id: 'optimism', quote: 'usd', description: 'Scalable Ethereum solution designed for fast transactions and lower fees.' },
+  { key: 'SUI/USD', name: 'Sui', market: 'Layer 1', id: 'sui', quote: 'usd', description: 'High-performance blockchain created for asset ownership and web3 apps.' },
+  { key: 'FIL/USD', name: 'Filecoin', market: 'Storage', id: 'filecoin', quote: 'usd', description: 'Decentralized storage network for digital assets and data retrieval.' },
+  { key: 'ALGO/USD', name: 'Algorand', market: 'Layer 1', id: 'algorand', quote: 'usd', description: 'Pure proof-of-stake blockchain focused on efficient settlement.' },
+  { key: 'EOS/USD', name: 'EOS', market: 'Smart Contract', id: 'eos', quote: 'usd', description: 'Blockchain built for dApps with high throughput and governance structures.' },
+  { key: 'TAO/USD', name: 'Bittensor', market: 'AI', id: 'bittensor', quote: 'usd', description: 'AI-focused decentralized network for machine intelligence and market signals.' },
+  { key: 'WIF/USD', name: 'dogwifhat', market: 'Meme', id: 'dogwifhat', quote: 'usd', description: 'Solana-based meme coin that gained strong retail trading momentum.' },
+  { key: 'PEPE/USD', name: 'Pepe', market: 'Meme', id: 'pepe', quote: 'usd', description: 'Memecoin with heavy community trading and social sentiment influence.' },
+  { key: 'BONK/USD', name: 'Bonk', market: 'Meme', id: 'bonk', quote: 'usd', description: 'Solana meme coin known for community-driven trading and liquidity.' },
+  { key: 'RNDR/USD', name: 'Render', market: 'AI / Compute', id: 'render-token', quote: 'usd', description: 'Distributed GPU rendering network for digital content and compute.' },
+  { key: 'ICP/USD', name: 'Internet Computer', market: 'Layer 1', id: 'internet-computer', quote: 'usd', description: 'Blockchain web infrastructure that enables internet-scale decentralized apps.' },
+  { key: 'FTM/USD', name: 'Fantom', market: 'Layer 1', id: 'fantom', quote: 'usd', description: 'High-speed blockchain for DeFi protocols and dApps.' },
+  { key: 'THETA/USD', name: 'Theta Network', market: 'Media', id: 'theta-token', quote: 'usd', description: 'Video streaming and media network powered by blockchain infrastructure.' },
+  { key: 'XTZ/USD', name: 'Tezos', market: 'Layer 1', id: 'tezos', quote: 'usd', description: 'Smart contract blockchain with on-chain governance and upgrades.' },
+  { key: 'VET/USD', name: 'VeChain', market: 'Supply Chain', id: 'vechain', quote: 'usd', description: 'Enterprise blockchain focused on logistics and supply-chain tracking.' },
+  { key: 'INJ/USD', name: 'Injective', market: 'DeFi', id: 'injective-protocol', quote: 'usd', description: 'Cross-chain DeFi protocol for trading and composable finance.' },
+  { key: 'GRT/USD', name: 'The Graph', market: 'Indexing', id: 'the-graph', quote: 'usd', description: 'Blockchain indexing protocol supporting data access for dApps.' },
+  { key: 'HBAR/USD', name: 'Hedera', market: 'Enterprise', id: 'hedera-hashgraph', quote: 'usd', description: 'Hashgraph-based network designed for enterprise-scale applications.' },
+  { key: 'KAS/USD', name: 'Kaspa', market: 'Layer 1', id: 'kaspa', quote: 'usd', description: 'High-speed proof-of-work network built for efficient block creation.' },
+  { key: 'FET/USD', name: 'Fetch.ai', market: 'AI', id: 'fetch-ai', quote: 'usd', description: 'AI agent network focused on autonomous economic systems.' },
+  { key: 'AAVE/USD', name: 'Aave', market: 'DeFi', id: 'aave', quote: 'usd', description: 'Leading DeFi lending protocol with liquidity markets and borrowing.' },
+  { key: 'SAND/USD', name: 'The Sandbox', market: 'Gaming', id: 'the-sandbox', quote: 'usd', description: 'Metaverse gaming ecosystem with tokenized digital assets and lands.' },
+  { key: 'MANA/USD', name: 'Decentraland', market: 'Metaverse', id: 'decentraland', quote: 'usd', description: 'Virtual world platform for land, assets, and digital experiences.' },
+  { key: 'CHZ/USD', name: 'Chiliz', market: 'Sports', id: 'chiliz', quote: 'usd', description: 'Fan engagement and sports token ecosystem for digital collectibles.' },
+  { key: 'IMX/USD', name: 'Immutable X', market: 'NFT', id: 'immutable-x', quote: 'usd', description: 'Layer-two NFT platform built to scale digital collectibles efficiently.' },
+  { key: 'FLOW/USD', name: 'Flow', market: 'NFT / Gaming', id: 'flow', quote: 'usd', description: 'Blockchain designed for consumer-grade digital collectibles and gaming.' },
+  { key: 'EGLD/USD', name: 'MultiversX', market: 'Layer 1', id: 'elrond-erd-2', quote: 'usd', description: 'High-throughput chain with sharding and scalable smart contract support.' },
+  { key: 'DYDX/USD', name: 'dYdX', market: 'DeFi', id: 'dydx-chain', quote: 'usd', description: 'Decentralized derivatives exchange for margin and perpetual contracts.' },
+  { key: 'ZIL/USD', name: 'Zilliqa', market: 'Layer 1', id: 'zilliqa', quote: 'usd', description: 'Blockchain with sharding architecture designed for scalable dApps.' },
+  { key: 'MASK/USD', name: 'Mask Network', market: 'Web3', id: 'mask-network', quote: 'usd', description: 'Web3 infrastructure protocol connecting social platforms and blockchain apps.' },
+  { key: 'ENJ/USD', name: 'Enjin', market: 'Gaming', id: 'enjincoin', quote: 'usd', description: 'Gaming ecosystem focused on tokenized digital assets and collectibles.' },
 ];
+
+const FX_PAIRS = [
+  { key: 'EUR/USD', type: 'fx', from: 'EUR', to: 'USD', name: 'Euro / US Dollar', description: 'Major FX pair tracking euro strength against the US dollar.' },
+  { key: 'GBP/USD', type: 'fx', from: 'GBP', to: 'USD', name: 'Pound / US Dollar', description: 'Major FX pair reflecting GBP strength against USD.' },
+  { key: 'USD/JPY', type: 'fx', from: 'USD', to: 'JPY', name: 'US Dollar / Japanese Yen', description: 'Key macro pair reflecting rate and risk sentiment.' },
+  { key: 'AUD/USD', type: 'fx', from: 'AUD', to: 'USD', name: 'Australian Dollar / US Dollar', description: 'Commodity-linked FX pair sensitive to global risk conditions.' },
+  { key: 'XAU/USD', type: 'crypto', id: 'gold', quote: 'usd', name: 'Gold / US Dollar', description: 'Precious metal benchmark tracking safe-haven price action.' },
+] as const;
+
+const MARKET_PAIRS = [...DEFAULT_CRYPTO_PAIRS, ...FX_PAIRS] as const;
+
+type MarketPair = typeof MARKET_PAIRS[number]['key'];
+
+type Timeframe = '7D' | '30D' | '90D';
+type TradingTool = 'Crosshair' | 'Trend' | 'Indicators' | 'Measure';
+type ChartMode = 'Candles' | 'Line';
+type IndicatorMode = 'None' | 'MA' | 'RSI' | 'MACD';
 
 const RANGE_OPTIONS: Timeframe[] = ['7D', '30D', '90D'];
 const TOOL_OPTIONS: TradingTool[] = ['Crosshair', 'Trend', 'Indicators', 'Measure'];
@@ -45,13 +146,12 @@ const CHART_MODES: ChartMode[] = ['Candles', 'Line'];
 const INDICATOR_OPTIONS: IndicatorMode[] = ['None', 'MA', 'RSI', 'MACD'];
 const REFRESH_MS = 60_000;
 
-const WATCHLIST = [
-  { pair: 'EUR/USD', change: 0.42 },
-  { pair: 'GBP/USD', change: -0.18 },
-  { pair: 'BTC/USD', change: 1.86 },
-  { pair: 'ETH/USD', change: -0.64 },
-  { pair: 'XAU/USD', change: 0.72 },
-];
+const WATCHLIST = DEFAULT_CRYPTO_PAIRS.slice(0, 20).map((item) => ({
+  pair: item.key,
+  name: item.name,
+  description: item.description,
+  change: (Math.random() * 10 - 5),
+}));
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -66,16 +166,65 @@ const formatPrice = (value: number, pair: MarketPair) => {
 };
 
 const buildFallbackData = (pair: MarketPair, days: number): CandleData[] => {
-  const base = {
+  const baseMap: Record<string, { open: number; high: number; low: number; close: number }> = {
     'BTC/USD': { open: 62000, high: 64000, low: 60000, close: 62800 },
     'ETH/USD': { open: 3100, high: 3300, low: 3000, close: 3210 },
+    'SOL/USD': { open: 148, high: 152, low: 142, close: 150 },
+    'BNB/USD': { open: 580, high: 610, low: 560, close: 600 },
+    'XRP/USD': { open: 0.58, high: 0.62, low: 0.54, close: 0.59 },
+    'ADA/USD': { open: 0.62, high: 0.68, low: 0.58, close: 0.64 },
+    'DOGE/USD': { open: 0.16, high: 0.18, low: 0.15, close: 0.17 },
+    'AVAX/USD': { open: 32, high: 35, low: 30, close: 33 },
+    'LINK/USD': { open: 15.2, high: 16.5, low: 14.7, close: 15.8 },
+    'MATIC/USD': { open: 0.8, high: 0.92, low: 0.74, close: 0.84 },
+    'DOT/USD': { open: 6.6, high: 7.2, low: 6.1, close: 6.9 },
+    'TRX/USD': { open: 0.12, high: 0.14, low: 0.11, close: 0.13 },
+    'NEAR/USD': { open: 5.1, high: 5.8, low: 4.9, close: 5.4 },
+    'ATOM/USD': { open: 8.8, high: 9.5, low: 8.1, close: 9.1 },
+    'LTC/USD': { open: 72, high: 76, low: 68, close: 74 },
+    'BCH/USD': { open: 355, high: 372, low: 340, close: 362 },
+    'UNI/USD': { open: 7.1, high: 7.9, low: 6.7, close: 7.4 },
+    'APT/USD': { open: 11.1, high: 12.3, low: 10.6, close: 11.8 },
+    'ARB/USD': { open: 1.05, high: 1.19, low: 0.98, close: 1.12 },
+    'OP/USD': { open: 2.4, high: 2.8, low: 2.2, close: 2.6 },
+    'SUI/USD': { open: 0.78, high: 0.9, low: 0.72, close: 0.85 },
+    'FIL/USD': { open: 5.5, high: 6.4, low: 5.1, close: 5.9 },
+    'ALGO/USD': { open: 0.18, high: 0.2, low: 0.17, close: 0.19 },
+    'EOS/USD': { open: 0.7, high: 0.74, low: 0.66, close: 0.71 },
+    'TAO/USD': { open: 340, high: 370, low: 320, close: 350 },
+    'WIF/USD': { open: 2.8, high: 3.3, low: 2.4, close: 2.9 },
+    'PEPE/USD': { open: 0.000011, high: 0.000014, low: 0.000009, close: 0.000012 },
+    'BONK/USD': { open: 0.000022, high: 0.000024, low: 0.000019, close: 0.000021 },
+    'RNDR/USD': { open: 5.3, high: 5.9, low: 4.8, close: 5.6 },
+    'ICP/USD': { open: 8.2, high: 9.1, low: 7.7, close: 8.5 },
+    'FTM/USD': { open: 0.62, high: 0.7, low: 0.58, close: 0.65 },
+    'THETA/USD': { open: 1.35, high: 1.55, low: 1.2, close: 1.42 },
+    'XTZ/USD': { open: 1.22, high: 1.35, low: 1.14, close: 1.28 },
+    'VET/USD': { open: 0.034, high: 0.039, low: 0.031, close: 0.036 },
+    'INJ/USD': { open: 19.4, high: 21.6, low: 18.1, close: 20.2 },
+    'GRT/USD': { open: 0.17, high: 0.19, low: 0.15, close: 0.17 },
+    'HBAR/USD': { open: 0.07, high: 0.08, low: 0.066, close: 0.073 },
+    'KAS/USD': { open: 0.09, high: 0.11, low: 0.084, close: 0.096 },
+    'FET/USD': { open: 0.88, high: 1.06, low: 0.81, close: 0.94 },
+    'AAVE/USD': { open: 78, high: 92, low: 72, close: 84 },
+    'SAND/USD': { open: 0.6, high: 0.7, low: 0.55, close: 0.64 },
+    'MANA/USD': { open: 0.55, high: 0.62, low: 0.5, close: 0.57 },
+    'CHZ/USD': { open: 0.09, high: 0.11, low: 0.08, close: 0.09 },
+    'IMX/USD': { open: 1.22, high: 1.46, low: 1.12, close: 1.31 },
+    'FLOW/USD': { open: 0.82, high: 0.96, low: 0.75, close: 0.88 },
+    'EGLD/USD': { open: 38, high: 44, low: 35, close: 40 },
+    'DYDX/USD': { open: 2.4, high: 2.9, low: 2.2, close: 2.6 },
+    'ZIL/USD': { open: 0.04, high: 0.05, low: 0.037, close: 0.042 },
+    'MASK/USD': { open: 4.2, high: 4.9, low: 3.9, close: 4.5 },
+    'ENJ/USD': { open: 0.3, high: 0.35, low: 0.28, close: 0.32 },
     'EUR/USD': { open: 1.08, high: 1.1, low: 1.07, close: 1.09 },
     'GBP/USD': { open: 1.27, high: 1.29, low: 1.25, close: 1.28 },
     'USD/JPY': { open: 149, high: 151, low: 148, close: 150 },
     'AUD/USD': { open: 0.66, high: 0.67, low: 0.65, close: 0.66 },
     'XAU/USD': { open: 2320, high: 2385, low: 2300, close: 2360 },
-  }[pair];
+  };
 
+  const base = baseMap[pair] ?? baseMap['BTC/USD'];
   const values: CandleData[] = [];
   let prev = base.open;
 
@@ -104,14 +253,15 @@ const buildFallbackData = (pair: MarketPair, days: number): CandleData[] => {
 };
 
 const fetchCryptoCandleData = async (pair: MarketPair, days: number) => {
-  const config = MARKET_PAIRS.find((item) => item.key === pair);
-  if (!config || !config.id || !config.quote) {
+  const config = MARKET_PAIRS.find((item) => item.key === pair) as typeof MARKET_PAIRS[number] | undefined;
+  const metadata = DEFAULT_CRYPTO_PAIRS.find((item) => item.key === pair);
+  if (!config || !metadata?.id) {
     return buildFallbackData(pair, days);
   }
 
   try {
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${config.id}/ohlc?vs_currency=${config.quote}&days=${days}`
+      `https://api.coingecko.com/api/v3/coins/${metadata.id}/ohlc?vs_currency=${metadata.quote}&days=${days}`
     );
 
     if (!response.ok) {
@@ -142,8 +292,8 @@ const fetchCryptoCandleData = async (pair: MarketPair, days: number) => {
 };
 
 const fetchFxCandleData = async (pair: MarketPair, days: number) => {
-  const config = MARKET_PAIRS.find((item) => item.key === pair);
-  if (!config || !config.from || !config.to) {
+  const config = MARKET_PAIRS.find((item) => item.key === pair) as typeof MARKET_PAIRS[number] | undefined;
+  if (!config || !('from' in config) || !('to' in config)) {
     return buildFallbackData(pair, days);
   }
 
@@ -199,12 +349,7 @@ const fetchFxCandleData = async (pair: MarketPair, days: number) => {
 };
 
 const fetchPairData = async (pair: MarketPair, days: number): Promise<CandleData[]> => {
-  const config = MARKET_PAIRS.find((item) => item.key === pair);
-  if (!config) {
-    return buildFallbackData(pair, days);
-  }
-
-  if (config.type === 'crypto') {
+  if (DEFAULT_CRYPTO_PAIRS.some((item) => item.key === pair)) {
     return fetchCryptoCandleData(pair, days);
   }
 
@@ -469,7 +614,7 @@ export const CryptoChart = () => {
             {MARKET_PAIRS.map((pair) => (
               <button
                 key={pair.key}
-                onClick={() => setSelectedPair(pair.key)}
+                onClick={() => setSelectedPair(pair.key as MarketPair)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                   selectedPair === pair.key
                     ? 'bg-cyan-600 text-white'
@@ -561,7 +706,10 @@ export const CryptoChart = () => {
                       : 'bg-[#171c27] text-gray-300 hover:bg-[#1d2430]'
                   }`}
                 >
-                  <div className="font-medium">{item.pair}</div>
+                  <div className="flex flex-col">
+                    <div className="font-medium">{item.pair}</div>
+                    <div className="text-[10px] text-gray-400">{item.name}</div>
+                  </div>
                   <div className={`text-xs font-semibold ${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {item.change >= 0 ? '+' : ''}
                     {item.change.toFixed(2)}%
