@@ -19,6 +19,8 @@ type MarketPair =
 
 type Timeframe = '7D' | '30D' | '90D';
 type TradingTool = 'Crosshair' | 'Trend' | 'Indicators' | 'Measure';
+type ChartMode = 'Candles' | 'Line';
+type IndicatorMode = 'None' | 'MA' | 'RSI' | 'MACD';
 
 const MARKET_PAIRS: Array<{
   key: MarketPair;
@@ -39,7 +41,17 @@ const MARKET_PAIRS: Array<{
 
 const RANGE_OPTIONS: Timeframe[] = ['7D', '30D', '90D'];
 const TOOL_OPTIONS: TradingTool[] = ['Crosshair', 'Trend', 'Indicators', 'Measure'];
+const CHART_MODES: ChartMode[] = ['Candles', 'Line'];
+const INDICATOR_OPTIONS: IndicatorMode[] = ['None', 'MA', 'RSI', 'MACD'];
 const REFRESH_MS = 60_000;
+
+const WATCHLIST = [
+  { pair: 'EUR/USD', change: 0.42 },
+  { pair: 'GBP/USD', change: -0.18 },
+  { pair: 'BTC/USD', change: 1.86 },
+  { pair: 'ETH/USD', change: -0.64 },
+  { pair: 'XAU/USD', change: 0.72 },
+];
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -205,12 +217,16 @@ const CandleChart = ({
   hoverIndex,
   setHoverIndex,
   activeTool,
+  chartMode,
+  indicatorMode,
 }: {
   data: CandleData[];
   selectedPair: MarketPair;
   hoverIndex: number | null;
   setHoverIndex: (value: number | null) => void;
   activeTool: TradingTool;
+  chartMode: ChartMode;
+  indicatorMode: IndicatorMode;
 }) => {
   const width = 960;
   const height = 360;
@@ -239,6 +255,13 @@ const CandleChart = ({
     return <line key={y} x1={padding} x2={width - padding} y1={y} y2={y} stroke="#2a2f3b" strokeDasharray="4 6" />;
   });
 
+  const averageLine = data.map((point, index) => {
+    const x = padding + index * step + step / 2;
+    const avg = data.slice(Math.max(0, index - 5), index + 1).reduce((sum, val) => sum + val.close, 0) / Math.max(1, Math.min(6, index + 1));
+    const y = padding + ((maxPrice - avg) / priceRange) * (height - padding * 2);
+    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+
   return (
     <div className="relative h-[420px] w-full">
       <svg
@@ -257,62 +280,39 @@ const CandleChart = ({
         onMouseLeave={() => setHoverIndex(null)}
       >
         {gridLines}
-        <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
 
-        {data.map((point, index) => {
-          const x = padding + index * step + step / 2;
-          const yOpen = padding + ((maxPrice - point.open) / priceRange) * (height - padding * 2);
-          const yClose = padding + ((maxPrice - point.close) / priceRange) * (height - padding * 2);
-          const yHigh = padding + ((maxPrice - point.high) / priceRange) * (height - padding * 2);
-          const yLow = padding + ((maxPrice - point.low) / priceRange) * (height - padding * 2);
-          const isUp = point.close >= point.open;
-          const color = isUp ? '#22c55e' : '#ef4444';
-          const bodyY = Math.min(yOpen, yClose);
-          const bodyHeight = Math.max(Math.abs(yClose - yOpen), 4);
+        {indicatorMode !== 'None' && (
+          <path d={averageLine} fill="none" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="6 5" opacity={0.8} />
+        )}
 
-          return (
-            <g key={`${point.date}-${index}`}>
-              <line
-                x1={x}
-                x2={x}
-                y1={yHigh}
-                y2={yLow}
-                stroke={color}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                opacity={0.9}
-              />
-              <rect
-                x={x - candleWidth / 2}
-                y={bodyY}
-                width={candleWidth}
-                height={bodyHeight}
-                rx={3}
-                fill={color}
-                opacity={0.8}
-              />
-            </g>
-          );
-        })}
+        {chartMode === 'Line' ? (
+          <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" />
+        ) : (
+          <>
+            <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+            {data.map((point, index) => {
+              const x = padding + index * step + step / 2;
+              const yOpen = padding + ((maxPrice - point.open) / priceRange) * (height - padding * 2);
+              const yClose = padding + ((maxPrice - point.close) / priceRange) * (height - padding * 2);
+              const yHigh = padding + ((maxPrice - point.high) / priceRange) * (height - padding * 2);
+              const yLow = padding + ((maxPrice - point.low) / priceRange) * (height - padding * 2);
+              const isUp = point.close >= point.open;
+              const color = isUp ? '#22c55e' : '#ef4444';
+              const bodyY = Math.min(yOpen, yClose);
+              const bodyHeight = Math.max(Math.abs(yClose - yOpen), 4);
 
-        <line
-          x1={hoverX}
-          x2={hoverX}
-          y1={padding}
-          y2={height - padding}
-          stroke="#93c5fd"
-          strokeDasharray="6 6"
-          opacity={0.8}
-        />
-        <line
-          x1={padding}
-          x2={width - padding}
-          y1={hoverY}
-          y2={hoverY}
-          stroke="#93c5fd"
-          strokeDasharray="6 6"
-          opacity={0.8}
-        />
+              return (
+                <g key={`${point.date}-${index}`}>
+                  <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
+                  <rect x={x - candleWidth / 2} y={bodyY} width={candleWidth} height={bodyHeight} rx={3} fill={color} opacity={0.8} />
+                </g>
+              );
+            })}
+          </>
+        )}
+
+        <line x1={hoverX} x2={hoverX} y1={padding} y2={height - padding} stroke="#93c5fd" strokeDasharray="6 6" opacity={0.8} />
+        <line x1={padding} x2={width - padding} y1={hoverY} y2={hoverY} stroke="#93c5fd" strokeDasharray="6 6" opacity={0.8} />
       </svg>
 
       <div className="absolute top-3 left-3 rounded-md border border-blue-500/40 bg-slate-900/80 px-2 py-1 text-xs text-blue-200 shadow-lg">
@@ -329,6 +329,8 @@ export const CryptoChart = () => {
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [activeTool, setActiveTool] = useState<TradingTool>('Crosshair');
+  const [chartMode, setChartMode] = useState<ChartMode>('Candles');
+  const [indicatorMode, setIndicatorMode] = useState<IndicatorMode>('MA');
   const [tradeSide, setTradeSide] = useState<'Buy' | 'Sell'>('Buy');
   const [tradeVolume, setTradeVolume] = useState<number>(0.5);
 
@@ -396,15 +398,15 @@ export const CryptoChart = () => {
   };
 
   return (
-    <div className="bg-[#13151f] p-6 rounded-xl border border-gray-800 shadow-2xl shadow-slate-950/40">
-      <div className="mb-5 flex flex-col gap-4">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+    <div className="bg-[#13151f] p-5 rounded-xl border border-gray-800 shadow-2xl shadow-slate-950/40">
+      <div className="mb-4 flex flex-col gap-3 border-b border-gray-800 pb-4">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 px-3 py-2 text-sm font-bold text-white">
-              {selectedPair}
+            <div className="h-8 w-8 rounded-md bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">
+              {selectedPair.split('/')[0].slice(0, 2)}
             </div>
             <div>
-              <div className="text-gray-400 text-xs uppercase tracking-widest">Market</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Terminal</div>
               <div className="text-white text-xl font-semibold">{selectedPair}</div>
             </div>
           </div>
@@ -422,8 +424,8 @@ export const CryptoChart = () => {
               </div>
             </div>
             <div className="text-gray-300">
-              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Hover</div>
-              <div className="text-white font-semibold">{formatPrice(pointerPrice, selectedPair)}</div>
+              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Status</div>
+              <div className="text-green-500 font-semibold">Online</div>
             </div>
           </div>
         </div>
@@ -445,7 +447,7 @@ export const CryptoChart = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {RANGE_OPTIONS.map((range) => (
               <button
                 key={range}
@@ -462,92 +464,158 @@ export const CryptoChart = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {MARKET_PAIRS.map((pair) => (
-            <button
-              key={pair.key}
-              onClick={() => setSelectedPair(pair.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                selectedPair === pair.key
-                  ? 'bg-cyan-600 text-white'
-                  : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
-              }`}
-            >
-              {pair.key}
-            </button>
-          ))}
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {MARKET_PAIRS.map((pair) => (
+              <button
+                key={pair.key}
+                onClick={() => setSelectedPair(pair.key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  selectedPair === pair.key
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                }`}
+              >
+                {pair.key}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {CHART_MODES.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setChartMode(mode)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                  chartMode === mode
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-        <div className="rounded-xl border border-gray-800 bg-[#10141d] p-3">
-          <div className="mb-3 flex items-center justify-between text-sm">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-sm">
             <div className="text-gray-300">
               <span className="text-gray-400">Hovered:</span>{' '}
               <span className="font-semibold text-white">{formatPrice(pointerPrice, selectedPair)}</span>
             </div>
-            <div className="text-gray-400">{pointerLabel}</div>
+            <div className="flex items-center gap-2">
+              {INDICATOR_OPTIONS.map((indicator) => (
+                <button
+                  key={indicator}
+                  type="button"
+                  onClick={() => setIndicatorMode(indicator)}
+                  className={`px-2 py-1 rounded text-[10px] font-semibold transition ${
+                    indicatorMode === indicator
+                      ? 'bg-slate-700 text-white'
+                      : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                  }`}
+                >
+                  {indicator}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <CandleChart
-            data={data}
-            selectedPair={selectedPair}
-            hoverIndex={hoverIndex}
-            setHoverIndex={setHoverIndex}
-            activeTool={activeTool}
-          />
+          <div className="rounded-xl border border-gray-800 bg-[#10141d] p-3">
+            <CandleChart
+              data={data}
+              selectedPair={selectedPair}
+              hoverIndex={hoverIndex}
+              setHoverIndex={setHoverIndex}
+              activeTool={activeTool}
+              chartMode={chartMode}
+              indicatorMode={indicatorMode}
+            />
+          </div>
         </div>
 
-        <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Order Ticket</div>
-              <div className="text-white text-lg font-semibold">{selectedPair}</div>
-            </div>
-            <div className="rounded-full border border-gray-700 bg-[#1a1d29] px-2 py-1 text-xs text-gray-300">
-              {selectedRange}
-            </div>
-          </div>
-
-          <div className="mb-4 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setTradeSide('Buy')} className={actionButtonClass('Buy')}>
-              Buy
-            </button>
-            <button type="button" onClick={() => setTradeSide('Sell')} className={actionButtonClass('Sell')}>
-              Sell
-            </button>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
-              <span className="text-gray-400">Price</span>
-              <span className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Watchlist</div>
+                <div className="text-white text-lg font-semibold">Markets</div>
+              </div>
+              <div className="rounded-full border border-gray-700 bg-[#1a1d29] px-2 py-1 text-[10px] text-gray-300 uppercase tracking-[0.18em]">
+                {selectedRange}
+              </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
-              <span className="text-gray-400">Volume</span>
-              <input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={tradeVolume}
-                onChange={(e) => setTradeVolume(Number(e.target.value) || 0.01)}
-                className="w-20 bg-transparent text-right text-white outline-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
-              <span className="text-gray-400">Estimated</span>
-              <span className="text-white font-semibold">
-                {formatCurrency((latest?.close ?? 0) * tradeVolume)}
-              </span>
+            <div className="space-y-2">
+              {WATCHLIST.map((item) => (
+                <button
+                  key={item.pair}
+                  type="button"
+                  onClick={() => setSelectedPair(item.pair as MarketPair)}
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left transition ${
+                    selectedPair === item.pair
+                      ? 'bg-blue-600/20 border border-blue-500/30 text-white'
+                      : 'bg-[#171c27] text-gray-300 hover:bg-[#1d2430]'
+                  }`}
+                >
+                  <div className="font-medium">{item.pair}</div>
+                  <div className={`text-xs font-semibold ${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {item.change >= 0 ? '+' : ''}
+                    {item.change.toFixed(2)}%
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
+          <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Order Ticket</div>
+                <div className="text-white text-lg font-semibold">{selectedPair}</div>
+              </div>
+              <div className="text-gray-400 text-xs">{pointerLabel}</div>
+            </div>
+
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setTradeSide('Buy')} className={actionButtonClass('Buy')}>
+                Buy
+              </button>
+              <button type="button" onClick={() => setTradeSide('Sell')} className={actionButtonClass('Sell')}>
+                Sell
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+                <span className="text-gray-400">Price</span>
+                <span className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+                <span className="text-gray-400">Volume</span>
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  value={tradeVolume}
+                  onChange={(e) => setTradeVolume(Number(e.target.value) || 0.01)}
+                  className="w-20 bg-transparent text-right text-white outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
+                <span className="text-gray-400">Estimated</span>
+                <span className="text-white font-semibold">{formatCurrency((latest?.close ?? 0) * tradeVolume)}</span>
+              </div>
+            </div>
+
             <button
               type="button"
-              className={`flex-1 rounded-lg px-4 py-3 text-sm font-semibold transition ${
+              className={`mt-5 w-full rounded-lg px-4 py-3 text-sm font-semibold transition ${
                 tradeSide === 'Buy'
                   ? 'bg-green-600 hover:bg-green-500 text-white'
                   : 'bg-red-600 hover:bg-red-500 text-white'
