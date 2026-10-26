@@ -79,8 +79,8 @@ const AppContent = () => {
 
   if (loading || verifying) {
     return (
-      <div className="min-h-screen bg-[#0a0c10] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-[#eef2f7] flex items-center justify-center">
+        <div className="text-slate-700 text-xl">Loading...</div>
       </div>
     );
   }
@@ -115,15 +115,11 @@ const AppContent = () => {
   };
 
   return (
-    <>
-      <Sidebar
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-        isAdmin={isAdmin}
-      />
+    <div className="min-h-screen bg-[#eef2f7] text-slate-800">
+      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
       <Header onNavigate={setCurrentPage} />
-      {renderPage()}
-    </>
+      <main className="ml-[220px] pt-[74px] min-h-screen">{renderPage()}</main>
+    </div>
   );
 };
 
