@@ -25,6 +25,7 @@ interface Deposit {
 }
 
 type MarketTab = 'Volume' | 'Top Gainers' | 'Top Losers' | 'New';
+type DashboardMode = 'dashboard' | 'live-trading' | 'demo';
 
 interface MarketEntry {
   id: string;
@@ -35,28 +36,27 @@ interface MarketEntry {
   total_volume: number;
   market_cap: number;
   price_change_percentage_24h: number;
-  source: 'live' | 'static';
 }
 
 const marketTabs: MarketTab[] = ['Volume', 'Top Gainers', 'Top Losers', 'New'];
 
 const staticMarketEntries: MarketEntry[] = [
-  { id: 'btc-usd', pair: 'BTC/USD', name: 'Bitcoin', current_price: 68240.12, total_volume: 41250000000, market_cap: 1344000000000, price_change_percentage_24h: 2.64, source: 'static' },
-  { id: 'eth-usd', pair: 'ETH/USD', name: 'Ethereum', current_price: 3498.7, total_volume: 18230000000, market_cap: 418000000000, price_change_percentage_24h: 1.85, source: 'static' },
-  { id: 'sol-usd', pair: 'SOL/USD', name: 'Solana', current_price: 154.31, total_volume: 5100000000, market_cap: 71400000000, price_change_percentage_24h: 4.72, source: 'static' },
-  { id: 'bnb-usd', pair: 'BNB/USD', name: 'Binance Coin', current_price: 582.5, total_volume: 1940000000, market_cap: 87500000000, price_change_percentage_24h: 1.58, source: 'static' },
-  { id: 'xrp-usd', pair: 'XRP/USD', name: 'XRP', current_price: 0.5812, total_volume: 2300000000, market_cap: 33000000000, price_change_percentage_24h: -0.43, source: 'static' },
-  { id: 'ada-usd', pair: 'ADA/USD', name: 'Cardano', current_price: 0.6328, total_volume: 1140000000, market_cap: 22300000000, price_change_percentage_24h: 2.12, source: 'static' },
-  { id: 'aapl-usd', pair: 'AAPL/USD', name: 'Apple', current_price: 214.56, total_volume: 4600000000, market_cap: 3260000000000, price_change_percentage_24h: 0.87, source: 'static' },
-  { id: 'msft-usd', pair: 'MSFT/USD', name: 'Microsoft', current_price: 428.12, total_volume: 2880000000, market_cap: 3180000000000, price_change_percentage_24h: 1.31, source: 'static' },
-  { id: 'nvda-usd', pair: 'NVDA/USD', name: 'NVIDIA', current_price: 131.8, total_volume: 3430000000, market_cap: 3220000000000, price_change_percentage_24h: 3.54, source: 'static' },
-  { id: 'tsla-usd', pair: 'TSLA/USD', name: 'Tesla', current_price: 248.9, total_volume: 5610000000, market_cap: 790000000000, price_change_percentage_24h: -1.76, source: 'static' },
-  { id: 'eur-usd', pair: 'EUR/USD', name: 'Euro / Dollar', current_price: 1.0884, total_volume: 920000000, market_cap: 0, price_change_percentage_24h: 0.12, source: 'static' },
-  { id: 'gbp-usd', pair: 'GBP/USD', name: 'Pound / Dollar', current_price: 1.2745, total_volume: 740000000, market_cap: 0, price_change_percentage_24h: -0.21, source: 'static' },
-  { id: 'xau-usd', pair: 'XAU/USD', name: 'Gold / Dollar', current_price: 2367.8, total_volume: 2100000000, market_cap: 0, price_change_percentage_24h: 1.14, source: 'static' },
+  { id: 'btc-usd', pair: 'BTC/USD', name: 'Bitcoin', current_price: 68240.12, total_volume: 41250000000, market_cap: 1344000000000, price_change_percentage_24h: 2.64 },
+  { id: 'eth-usd', pair: 'ETH/USD', name: 'Ethereum', current_price: 3498.7, total_volume: 18230000000, market_cap: 418000000000, price_change_percentage_24h: 1.85 },
+  { id: 'sol-usd', pair: 'SOL/USD', name: 'Solana', current_price: 154.31, total_volume: 5100000000, market_cap: 71400000000, price_change_percentage_24h: 4.72 },
+  { id: 'bnb-usd', pair: 'BNB/USD', name: 'Binance Coin', current_price: 582.5, total_volume: 1940000000, market_cap: 87500000000, price_change_percentage_24h: 1.58 },
+  { id: 'xrp-usd', pair: 'XRP/USD', name: 'XRP', current_price: 0.5812, total_volume: 2300000000, market_cap: 33000000000, price_change_percentage_24h: -0.43 },
+  { id: 'ada-usd', pair: 'ADA/USD', name: 'Cardano', current_price: 0.6328, total_volume: 1140000000, market_cap: 22300000000, price_change_percentage_24h: 2.12 },
+  { id: 'aapl-usd', pair: 'AAPL/USD', name: 'Apple', current_price: 214.56, total_volume: 4600000000, market_cap: 3260000000000, price_change_percentage_24h: 0.87 },
+  { id: 'msft-usd', pair: 'MSFT/USD', name: 'Microsoft', current_price: 428.12, total_volume: 2880000000, market_cap: 3180000000000, price_change_percentage_24h: 1.31 },
+  { id: 'nvda-usd', pair: 'NVDA/USD', name: 'NVIDIA', current_price: 131.8, total_volume: 3430000000, market_cap: 3220000000000, price_change_percentage_24h: 3.54 },
+  { id: 'tsla-usd', pair: 'TSLA/USD', name: 'Tesla', current_price: 248.9, total_volume: 5610000000, market_cap: 790000000000, price_change_percentage_24h: -1.76 },
+  { id: 'eur-usd', pair: 'EUR/USD', name: 'Euro / Dollar', current_price: 1.0884, total_volume: 920000000, market_cap: 0, price_change_percentage_24h: 0.12 },
+  { id: 'gbp-usd', pair: 'GBP/USD', name: 'Pound / Dollar', current_price: 1.2745, total_volume: 740000000, market_cap: 0, price_change_percentage_24h: -0.21 },
+  { id: 'xau-usd', pair: 'XAU/USD', name: 'Gold / Dollar', current_price: 2367.8, total_volume: 2100000000, market_cap: 0, price_change_percentage_24h: 1.14 },
 ];
 
-export const DashboardPage = () => {
+export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) => {
   const { user, loading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [recentTrades, setRecentTrades] = useState<Trade[]>([]);
@@ -65,6 +65,8 @@ export const DashboardPage = () => {
   const [marketTab, setMarketTab] = useState<MarketTab>('Volume');
   const [marketEntries, setMarketEntries] = useState<MarketEntry[]>(staticMarketEntries);
   const [marketLoading, setMarketLoading] = useState(true);
+
+  const isDemoMode = mode === 'demo';
 
   useEffect(() => {
     if (user) {
@@ -100,7 +102,6 @@ export const DashboardPage = () => {
             total_volume: Number(coin.total_volume || 0),
             market_cap: Number(coin.market_cap || 0),
             price_change_percentage_24h: Number(coin.price_change_percentage_24h || 0),
-            source: 'live',
           }))
         : [];
 
@@ -204,6 +205,23 @@ export const DashboardPage = () => {
 
   return (
     <div className="bg-[#edf3f8] p-5 lg:p-6">
+      {isDemoMode && (
+        <div className="mx-auto mb-4 flex max-w-[1360px] items-center justify-between rounded-[12px] border border-[#dfe7f0] bg-[#edf7ff] px-4 py-3 text-sm text-slate-600">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#3b82f6]" />
+            <span>
+              You&apos;re in demo mode. <span className="text-slate-500">Bots and trades here are virtual funds.</span>
+            </span>
+          </div>
+          <button
+            onClick={() => window.location.assign('/')}
+            className="rounded-lg border border-[#cfe0ff] bg-white px-3 py-1.5 font-semibold text-sky-700 hover:bg-sky-50"
+          >
+            Switch to live
+          </button>
+        </div>
+      )}
+
       <div className="mx-auto max-w-[1360px]">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.8fr)_320px]">
           <section className="rounded-[18px] border border-[#dfe7f0] bg-[#f3f6fa] p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
@@ -307,7 +325,7 @@ export const DashboardPage = () => {
               <div className="text-2xl font-bold text-slate-500">No exchange accounts connected</div>
               <div className="mt-2 text-sm text-slate-400">You haven&apos;t connected an exchange account to Cornix</div>
               <button className="mt-5 rounded-xl bg-[#1d73f5] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#1667d8]">
-                Create Account
+                {isDemoMode ? 'Create Demo Account' : 'Create Account'}
               </button>
             </div>
           </section>
@@ -439,4 +457,3 @@ const formatPrice = (value: number) => {
 };
 
 export default DashboardPage;
-

@@ -15,7 +15,8 @@ import { supabase } from './lib/supabase';
 const AppContent = () => {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState<string>(() => {
-    return localStorage.getItem('currentPage') || 'dashboard';
+    const saved = localStorage.getItem('currentPage');
+    return saved || 'dashboard';
   });
   const [verifying, setVerifying] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -92,7 +93,11 @@ const AppContent = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage />;
+        return <DashboardPage mode="dashboard" />;
+      case 'live-trading':
+        return <DashboardPage mode="live-trading" />;
+      case 'demo':
+        return <DashboardPage mode="demo" />;
       case 'balance':
         return <BalancePage />;
       case 'trade':
@@ -110,14 +115,17 @@ const AppContent = () => {
           <div className="text-center text-red-500 p-8">Access Denied: Admins Only</div>
         );
       default:
-        return <DashboardPage />;
+        return <DashboardPage mode="dashboard" />;
     }
   };
 
   return (
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
-      <Header onNavigate={setCurrentPage} />
+      <Header
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+      />
       <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
     </div>
   );

@@ -1,12 +1,19 @@
-import { ChevronLeft, ChevronDown, Bell, Plus, CreditCard, ArrowUp, ArrowDown, Wallet } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Bell, Plus, CreditCard, ArrowUp, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface HeaderProps {
+  currentPage: string;
   onNavigate: (page: string) => void;
 }
 
-export const Header = ({ onNavigate }: HeaderProps) => {
+const tabs = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'live-trading', label: 'Live Trading' },
+  { key: 'demo', label: 'Demo' },
+];
+
+export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, signOut } = useAuth();
 
@@ -23,17 +30,17 @@ export const Header = ({ onNavigate }: HeaderProps) => {
         </button>
 
         <nav className="flex items-center gap-2 rounded-xl border border-[#e1e7ef] bg-[#f7f9fc] p-1">
-          {['Dashboard', 'Live Trading', 'Demo'].map((tab, index) => (
+          {tabs.map((tab) => (
             <button
-              key={tab}
-              onClick={() => onNavigate(index === 0 ? 'dashboard' : 'trade')}
+              key={tab.key}
+              onClick={() => onNavigate(tab.key)}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                index === 0
+                currentPage === tab.key
                   ? 'bg-white text-slate-700 shadow-sm ring-1 ring-[#e5edf5]'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              {tab}
+              {tab.label}
             </button>
           ))}
         </nav>
@@ -45,8 +52,8 @@ export const Header = ({ onNavigate }: HeaderProps) => {
             <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#f7931a]" />
             <span>BTC/USD</span>
           </div>
-          <span className="text-[11px] text-slate-500">80,104.28</span>
-          <span className="text-[11px] text-emerald-500">-0.62%</span>
+          <span className="text-[11px] text-slate-500">79,958.02</span>
+          <span className="text-[11px] text-emerald-500">-0.72%</span>
         </div>
 
         <div className="flex items-center gap-3 rounded-xl border border-[#e4ebf4] bg-[#f7f9fc] px-2 py-1.5">
@@ -54,8 +61,8 @@ export const Header = ({ onNavigate }: HeaderProps) => {
             <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#26a17b]" />
             <span>ETH/USD</span>
           </div>
-          <span className="text-[11px] text-slate-500">2,319.61</span>
-          <span className="text-[11px] text-emerald-500">+1.49%</span>
+          <span className="text-[11px] text-slate-500">2,316.48</span>
+          <span className="text-[11px] text-emerald-500">+1.41%</span>
         </div>
 
         <div className="flex items-center gap-3 rounded-xl border border-[#e4ebf4] bg-[#f7f9fc] px-2 py-1.5">
@@ -63,8 +70,8 @@ export const Header = ({ onNavigate }: HeaderProps) => {
             <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#7c8cff]" />
             <span>ADA/USD</span>
           </div>
-          <span className="text-[11px] text-slate-500">0.2061</span>
-          <span className="text-[11px] text-emerald-500">+0.05%</span>
+          <span className="text-[11px] text-slate-500">0.2049</span>
+          <span className="text-[11px] text-emerald-500">+0.24%</span>
         </div>
 
         <button className="rounded-xl border border-[#dfe7f0] bg-[#f6f9ff] px-4 py-2 text-sm font-semibold text-[#1267d1] hover:bg-[#edf5ff]">
