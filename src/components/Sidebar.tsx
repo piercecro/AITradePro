@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ArrowLeftRight,
   BarChart3,
   Bell,
   Briefcase,
@@ -8,7 +7,6 @@ import {
   ChevronRight,
   Home,
   LayoutGrid,
-  Settings,
   TrendingUp,
   Wallet,
   Shield,
@@ -39,14 +37,11 @@ const portfolioItems: SidebarItem[] = [
 
 const portfolioSubItems: SidebarItem[] = [
   { label: 'Assets', value: 'balance', icon: Wallet },
-  { label: 'Positions', value: 'trade', icon: TrendingUp },
 ];
 
 const monitoringItems: SidebarItem[] = [
   { label: 'Signals', value: 'dashboard', icon: BarChart3 },
   { label: 'Watchlist', value: 'dashboard', icon: Bell },
-  { label: 'My Groups', value: 'referral', icon: Users },
-  { label: 'Settings', value: 'settings', icon: Settings },
 ];
 
 export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
@@ -168,32 +163,6 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
           )}
         </div>
       </nav>
-
-      <div className="mt-6 border-t border-[#e2eaf2] pt-4">
-        <button
-          onClick={() => handleItemClick('settings')}
-          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-            currentPage === 'settings'
-              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-              : 'text-slate-600 hover:bg-white hover:text-slate-800'
-          }`}
-        >
-          <Settings size={16} />
-          <span>Settings</span>
-        </button>
-
-        <button
-          onClick={() => handleItemClick('referral')}
-          className={`mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-            currentPage === 'referral'
-              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-              : 'text-slate-600 hover:bg-white hover:text-slate-800'
-          }`}
-        >
-          <Users size={16} />
-          <span>Referral</span>
-        </button>
-      </div>
 
       {isAdmin && (
         <button
