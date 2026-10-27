@@ -7,10 +7,10 @@ import {
   ChevronRight,
   Home,
   LayoutGrid,
-  TrendingUp,
-  Wallet,
+  Settings,
   Shield,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -37,6 +37,7 @@ const portfolioItems: SidebarItem[] = [
 
 const portfolioSubItems: SidebarItem[] = [
   { label: 'Assets', value: 'balance', icon: Wallet },
+  { label: 'My Bot', value: 'my-bot', icon: Wallet },
 ];
 
 const monitoringItems: SidebarItem[] = [
@@ -163,6 +164,20 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
           )}
         </div>
       </nav>
+
+      <div className="mt-6 border-t border-[#e2eaf2] pt-4">
+        <button
+          onClick={() => handleItemClick('settings')}
+          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+            currentPage === 'settings'
+              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
+              : 'text-slate-600 hover:bg-white hover:text-slate-800'
+          }`}
+        >
+          <Settings size={16} />
+          <span>Settings</span>
+        </button>
+      </div>
 
       {isAdmin && (
         <button
