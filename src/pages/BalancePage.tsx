@@ -23,8 +23,8 @@ export const BalancePage = () => {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-[#edf3f8] pl-[250px] pt-[64px]">
-      <div className="mx-auto max-w-[1460px] p-5 lg:p-6">
+    <div className="bg-[#edf3f8] p-5 lg:p-6">
+      <div className="mx-auto max-w-[1460px]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-[#f3f6fb] p-1 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
             {tabs.map(({ key, label, count }) => (
