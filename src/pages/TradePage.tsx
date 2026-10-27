@@ -1,548 +1,163 @@
-import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Radio } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { CryptoChart } from '../components/CryptoChart';
+import { useState } from 'react';
+import {
+  ChevronDown,
+  Download,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Wallet,
+} from 'lucide-react';
 
-interface Trade {
-  id: string;
-  trading_pair: string;
-  trade_type: string;
-  amount: number;
-  entry_price: number;
-  exit_price: number | null;
-  profit_loss: number;
-  status: string;
-  opened_at: string;
-  closed_at: string | null;
-}
-
-interface BotConnection {
-  is_connected: boolean;
-}
-
-interface BotPairPick {
-  pair: string;
-  name?: string;
-  category: string;
-  signal: 'buy' | 'sell';
-  confidence: number;
-}
-
-const tradingPairs = [
-  { pair: 'USD/EUR', category: 'Forex' },
-  { pair: 'USD/GBP', category: 'Forex' },
-  { pair: 'USD/JPY', category: 'Forex' },
-  { pair: 'USD/AUD', category: 'Forex' },
-  { pair: 'EUR/GBP', category: 'Forex' },
-  { pair: 'XAU/USD', name: 'Gold', category: 'Commodities' },
-  { pair: 'XAG/USD', name: 'Silver', category: 'Commodities' },
-  { pair: 'XCU/USD', name: 'Copper', category: 'Commodities' },
-  { pair: 'SPX', name: 'S&P 500', category: 'Indices' },
-  { pair: 'DJI', name: 'Dow Jones', category: 'Indices' },
-  { pair: 'NASDAQ', name: 'NASDAQ', category: 'Indices' },
-  { pair: 'FTSE', name: 'FTSE 100', category: 'Indices' },
-  { pair: 'BTC/USD', name: 'Bitcoin', category: 'Crypto' },
-  { pair: 'ETH/USD', name: 'Ethereum', category: 'Crypto' },
-  { pair: 'SOL/USD', name: 'Solana', category: 'Crypto' },
-  { pair: 'BNB/USD', name: 'BNB', category: 'Crypto' },
-  { pair: 'XRP/USD', name: 'XRP', category: 'Crypto' },
-  { pair: 'ADA/USD', name: 'Cardano', category: 'Crypto' },
-  { pair: 'DOGE/USD', name: 'Dogecoin', category: 'Crypto' },
-  { pair: 'AVAX/USD', name: 'Avalanche', category: 'Crypto' },
-  { pair: 'LINK/USD', name: 'Chainlink', category: 'Crypto' },
-  { pair: 'DOT/USD', name: 'Polkadot', category: 'Crypto' },
-  { pair: 'MATIC/USD', name: 'Polygon', category: 'Crypto' },
-  { pair: 'TRX/USD', name: 'TRON', category: 'Crypto' },
-  { pair: 'ATOM/USD', name: 'Cosmos', category: 'Crypto' },
-  { pair: 'LTC/USD', name: 'Litecoin', category: 'Crypto' },
+const tradeTabs = ['Open', 'Closed'];
+const tableHeaders = [
+  'Symbol',
+  'Amount (qty)',
+  'Next entry/stop',
+  'Next take-profit',
+  'Opened at',
+  'PnL',
+  'Progress',
 ];
 
 export const TradePage = () => {
-  const { user } = useAuth();
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [botConnected, setBotConnected] = useState(false);
-  const [selectedPair, setSelectedPair] = useState('');
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [botPairs, setBotPairs] = useState<BotPairPick[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const loadData = async () => {
-      await Promise.all([loadTrades(), loadBotStatus()]);
-    };
-
-    loadData();
-  }, [user]);
-
-  useEffect(() => {
-    if (!botConnected) {
-      setBotPairs([]);
-      return;
-    }
-
-    const pick = () => {
-      const shuffled = [...tradingPairs]
-        .filter((item) => item.pair && (item.category === 'Crypto' || item.category === 'Forex' || item.category === 'Commodities'))
-        .sort(() => Math.random() - 0.5)
-        .slice(0, Math.floor(Math.random() * 5) + 4);
-
-      const picks: BotPairPick[] = shuffled.map((item) => ({
-        pair: item.pair,
-        name: item.name,
-        category: item.category,
-        signal: Math.random() > 0.5 ? 'buy' : 'sell',
-        confidence: Math.floor(Math.random() * 20) + 80,
-      }));
-
-      setBotPairs(picks);
-    };
-
-    pick();
-  }, [botConnected]);
-
-  const loadTrades = async () => {
-    if (!user?.id) return;
-
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('opened_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading trades:', error.message);
-      return;
-    }
-
-    setTrades(data ?? []);
-  };
-
-  const loadBotStatus = async () => {
-    if (!user?.id) return;
-
-    const { data, error } = await supabase
-      .from('bot_connections')
-      .select('is_connected')
-      .eq('user_id', user.id)
-      .eq('bot_name', 'trading_bot')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error loading bot status:', error.message);
-      return;
-    }
-
-    setBotConnected(Boolean(data?.is_connected));
-  };
-
-  const createMockTrade = async () => {
-    if (!user?.id) return;
-
-    const pairs = ['EUR/USD', 'GBP/USD', 'XAU/USD', 'BTC/USD', 'ETH/USD'];
-    const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
-    const tradeType = Math.random() > 0.5 ? 'long' : 'short';
-    const entryPrice = 1000 + Math.random() * 50000;
-    const profitLoss = (Math.random() - 0.5) * 200;
-    const amount = 100 + Math.random() * 900;
-
-    const trade = {
-      user_id: user.id,
-      trading_pair: randomPair,
-      trade_type: tradeType,
-      amount,
-      entry_price: entryPrice,
-      exit_price: null,
-      profit_loss: profitLoss,
-      status: 'active',
-      opened_at: new Date().toISOString(),
-      closed_at: null,
-    };
-
-    const { error } = await supabase.from('trades').insert([trade]);
-    if (error) {
-      console.error('Error creating mock trade:', error.message);
-      return;
-    }
-
-    await loadTrades();
-  };
-
-  const handleTradeAction = (action: 'buy' | 'sell', item: { pair: string; name?: string }) => {
-    const entryPrice = 100 + Math.random() * 5000;
-    const amount = 100 + Math.random() * 900;
-    const newTrade: Trade = {
-      id: `${item.pair}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      trading_pair: item.pair,
-      trade_type: action === 'buy' ? 'long' : 'short',
-      amount,
-      entry_price: entryPrice,
-      exit_price: null,
-      profit_loss: 0,
-      status: 'active',
-      opened_at: new Date().toISOString(),
-      closed_at: null,
-    };
-
-    setTrades((current) => [newTrade, ...current]);
-  };
-
-  const handleConnectBot = async () => {
-    if (!user?.id) return;
-
-    const nextState = !botConnected;
-
-    const { data: existing, error: fetchError } = await supabase
-      .from('bot_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('bot_name', 'trading_bot')
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('Error checking bot connection:', fetchError.message);
-      return;
-    }
-
-    if (existing) {
-      const { error } = await supabase
-        .from('bot_connections')
-        .update({
-          is_connected: nextState,
-          connected_at: nextState ? new Date().toISOString() : existing.connected_at,
-        })
-        .eq('id', existing.id);
-
-      if (error) {
-        console.error('Error updating bot connection:', error.message);
-        return;
-      }
-
-      setBotConnected(nextState);
-
-      if (nextState) {
-        await createMockTrade();
-      }
-    } else {
-      const { error } = await supabase
-        .from('bot_connections')
-        .upsert(
-          {
-            user_id: user.id,
-            bot_name: 'trading_bot',
-            is_connected: true,
-            connected_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,bot_name' }
-        )
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error inserting bot connection:', error.message);
-        return;
-      }
-
-      setBotConnected(true);
-      await createMockTrade();
-    }
-
-    setShowConnectModal(false);
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  const [activeTab, setActiveTab] = useState('Open');
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] pl-16 pt-16">
-      <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-white text-3xl font-bold mb-8">Trade</h1>
-
-        <div className="mb-8">
-          <CryptoChart />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
-            <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
-              <h2 className="text-white text-xl font-semibold mb-6">Trading Pairs</h2>
-
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Search trading pairs..."
-                  value={selectedPair}
-                  onChange={(e) => setSelectedPair(e.target.value)}
-                  className="w-full bg-[#1a1d29] text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {['Forex', 'Commodities', 'Indices', 'Crypto'].map((category) => (
-                  <div key={category}>
-                    <div className="text-gray-400 text-sm font-semibold mb-2 mt-4">{category}</div>
-                    {tradingPairs
-                      .filter((item) => item.category === category)
-                      .filter((item) =>
-                        selectedPair
-                          ? item.pair.toLowerCase().includes(selectedPair.toLowerCase()) ||
-                            item.name?.toLowerCase().includes(selectedPair.toLowerCase())
-                          : true
-                      )
-                      .map((item) => (
-                        <div
-                          key={item.pair}
-                          className="w-full p-3 bg-[#1a1d29] rounded-lg hover:bg-[#1f2230] transition-colors flex items-center justify-between gap-3"
-                        >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="flex-shrink-0 flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleTradeAction('buy', item)}
-                                className="px-3 py-1.5 rounded-md bg-green-600/90 hover:bg-green-500 text-white text-xs font-semibold transition-colors"
-                              >
-                                Buy
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleTradeAction('sell', item)}
-                                className="px-3 py-1.5 rounded-md bg-red-600/90 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
-                              >
-                                Sell
-                              </button>
-                            </div>
-
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
-                              <span className="text-white font-bold text-sm">
-                                {item.pair.split('/')[0].substring(0, 2)}
-                              </span>
-                            </div>
-
-                            <div className="text-left min-w-0">
-                              <div className="text-white font-semibold truncate">{item.pair}</div>
-                              {item.name && <div className="text-gray-400 text-sm truncate">{item.name}</div>}
-                            </div>
-                          </div>
-
-                          <TrendingUp size={20} className="text-green-500 flex-shrink-0" />
-                        </div>
-                      ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white text-lg font-semibold">Trading Bot</h3>
-                <Radio size={20} className={botConnected ? 'text-green-500' : 'text-gray-500'} />
-              </div>
-
-              <div className="mb-4">
-                <div className="text-gray-400 text-sm mb-2">Status</div>
-                <div
-                  className={`text-lg font-semibold ${
-                    botConnected ? 'text-green-500' : 'text-gray-400'
+    <div className="bg-[#edf3f8] p-5 lg:p-6">
+      <div className="mx-auto max-w-[1500px]">
+        <div className="overflow-hidden rounded-[20px] border border-[#dfe7f0] bg-[#f4f7fb] shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+          <div className="flex items-center justify-between border-b border-[#e3ebf4] bg-[#f8fafc] px-5 py-4">
+            <div className="inline-flex items-center gap-1 rounded-xl border border-[#dfe7f0] bg-[#f1f5f9] p-1">
+              {tradeTabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
+                    activeTab === tab
+                      ? 'bg-white text-[#1d73f5] shadow-sm ring-1 ring-[#dfe9f7]'
+                      : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  {botConnected ? 'Connected' : 'Disconnected'}
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <SlidersHorizontal size={15} />
+                Filters
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <Download size={15} />
+                Export
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1d73f5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#1667d8]"
+              >
+                <Plus size={15} />
+                Create Trade
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 border-b border-[#e3ebf4] bg-[#f3f6fa]">
+            <section className="border-r border-[#e3ebf4] p-5 lg:p-6">
+              <div className="mb-6 text-[18px] font-bold text-slate-700">Trades amount allocation</div>
+
+              <div className="flex min-h-[235px] items-center justify-center gap-5 px-2">
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#dfe9f3]">
+                  <div className="absolute inset-[18px] rounded-full bg-[#f5f8fc]" />
+                  <div className="relative text-center">
+                    <div className="text-[14px] font-black tracking-[-0.04em] text-slate-800">$0</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total</div>
+                  </div>
+                </div>
+
+                <div className="text-left">
+                  <div className="text-[14px] font-semibold text-slate-500">No open trades</div>
+                  <div className="mt-1 text-sm text-slate-400">
+                    Your allocation shows up here
+                    <br />
+                    once you open a trade.
+                  </div>
                 </div>
               </div>
+            </section>
+
+            <section className="p-5 lg:p-6">
+              <div className="mb-6 text-[18px] font-bold text-slate-700">Number of Trades</div>
+
+              <div className="mt-8 flex min-h-[235px] items-center justify-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-white text-slate-300">
+                  <Wallet size={26} />
+                </div>
+              </div>
+
+              <div className="text-center text-lg font-semibold text-slate-500">No data collected</div>
+            </section>
+          </div>
+
+          <div className="overflow-hidden bg-[#f7f9fc]">
+            <div className="flex items-center justify-between border-b border-[#e3ebf4] px-5 py-4">
+              <div className="text-[18px] font-bold text-slate-700">Open Trades</div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    className="w-[180px] rounded-xl border border-[#dfe7f0] bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="flex h-[38px] w-[38px] items-center justify-center rounded-xl border border-[#dfe7f0] bg-white text-slate-500 hover:bg-slate-50"
+                  aria-label="Open trade filters"
+                >
+                  <SlidersHorizontal size={15} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[1.15fr_1.1fr_1.3fr_1.3fr_1.2fr_0.8fr_1fr] items-center gap-3 border-b border-[#e3ebf4] bg-[#f3f6fa] px-5 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+              {tableHeaders.map((header) => (
+                <div key={header} className="flex items-center gap-1">
+                  <span>{header}</span>
+                  {header !== 'Progress' && <ChevronDown size={11} className="text-slate-400" />}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex min-h-[290px] flex-col items-center justify-center gap-5 bg-white px-5 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300">
+                <Wallet size={24} />
+              </div>
+
+              <div className="text-[18px] font-bold text-slate-600">No open trades</div>
 
               <button
-                onClick={() => setShowConnectModal(true)}
-                className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                type="button"
+                className="rounded-xl bg-[#1d73f5] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#1667d8]"
               >
-                {botConnected ? 'Disconnect Bot' : 'Connect Bot'}
+                Create Trade
               </button>
-
-              {!botConnected && (
-                <p className="mt-3 text-gray-400 text-sm text-center">
-                  💡 Our automated trading bot allows you to earn{' '}
-                  <span className="text-green-400 font-semibold">5–12% compound interest</span>{' '}
-                  passively every week through intelligent crypto, forex, and metals trading
-                  strategies.
-                </p>
-              )}
-
-              {botConnected && (
-                <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <div className="text-green-500 text-sm">
-                    Trading bot is active and monitoring markets
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
-
-        <div className="bg-[#13151f] rounded-xl p-6 border border-gray-800">
-          <h2 className="text-white text-xl font-semibold mb-6">Active Trades</h2>
-
-          {trades.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No active trades. Connect your bot to start trading.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-left text-gray-400 text-sm font-semibold pb-3">Pair</th>
-                    <th className="text-left text-gray-400 text-sm font-semibold pb-3">Type</th>
-                    <th className="text-right text-gray-400 text-sm font-semibold pb-3">Amount</th>
-                    <th className="text-right text-gray-400 text-sm font-semibold pb-3">Entry</th>
-                    <th className="text-right text-gray-400 text-sm font-semibold pb-3">Current</th>
-                    <th className="text-right text-gray-400 text-sm font-semibold pb-3">P&L</th>
-                    <th className="text-left text-gray-400 text-sm font-semibold pb-3">Status</th>
-                    <th className="text-left text-gray-400 text-sm font-semibold pb-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((trade) => (
-                    <tr key={trade.id} className="border-b border-gray-800">
-                      <td className="py-4 text-white font-medium">{trade.trading_pair}</td>
-                      <td className="py-4">
-                        <span
-                          className={`inline-flex items-center space-x-1 ${
-                            trade.trade_type === 'long' ? 'text-green-500' : 'text-red-500'
-                          }`}
-                        >
-                          {trade.trade_type === 'long' ? (
-                            <TrendingUp size={16} />
-                          ) : (
-                            <TrendingDown size={16} />
-                          )}
-                          <span className="capitalize">{trade.trade_type}</span>
-                        </span>
-                      </td>
-                      <td className="py-4 text-right text-white">{formatCurrency(trade.amount)}</td>
-                      <td className="py-4 text-right text-white">{formatCurrency(trade.entry_price)}</td>
-                      <td className="py-4 text-right text-white">
-                        {trade.exit_price ? formatCurrency(trade.exit_price) : '-'}
-                      </td>
-                      <td
-                        className={`py-4 text-right font-semibold ${
-                          trade.profit_loss >= 0 ? 'text-green-500' : 'text-red-500'
-                        }`}
-                      >
-                        {formatCurrency(trade.profit_loss)}
-                      </td>
-                      <td className="py-4">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-semibold ${
-                            trade.status === 'active'
-                              ? 'bg-green-500/10 text-green-500'
-                              : 'bg-gray-500/10 text-gray-400'
-                          }`}
-                        >
-                          {trade.status}
-                        </span>
-                      </td>
-                      <td className="py-4 text-gray-400 text-sm">{formatDate(trade.opened_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {botConnected && botPairs.length > 0 && (
-            <div className="mt-8 border-t border-gray-800 pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white text-lg font-semibold">Bot Picks</h3>
-                <span className="text-xs uppercase tracking-[0.16em] text-gray-400">
-                  {botPairs.length} pairs
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {botPairs.map((item) => (
-                  <div key={`${item.pair}-${item.signal}`} className="rounded-lg border border-gray-800 bg-[#161b26] p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="text-white font-medium">{item.pair}</div>
-                        {item.name && <div className="text-gray-400 text-xs">{item.name}</div>}
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          item.signal === 'buy' ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-                        }`}
-                      >
-                        {item.signal}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{item.category}</span>
-                      <span>{item.confidence}% confidence</span>
-                    </div>
-
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleTradeAction('buy', { pair: item.pair, name: item.name })}
-                        className="flex-1 rounded-md bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-500"
-                      >
-                        Buy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleTradeAction('sell', { pair: item.pair, name: item.name })}
-                        className="flex-1 rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500"
-                      >
-                        Sell
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {showConnectModal && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#13151f] rounded-xl p-8 max-w-md w-full border border-gray-800">
-              <h3 className="text-white text-2xl font-bold mb-4">
-                {botConnected ? 'Disconnect Trading Bot' : 'Connect Trading Bot'}
-              </h3>
-
-              <p className="text-gray-400 mb-6">
-                {botConnected
-                  ? 'Disconnecting the bot will stop it from executing automated trades on your behalf.'
-                  : 'Connecting the trading bot will allow it to automatically execute trades on your behalf based on market conditions and your configured strategy.'}
-              </p>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setShowConnectModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConnectBot}
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  {botConnected ? 'Disconnect' : 'Connect'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
