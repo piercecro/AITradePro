@@ -99,7 +99,9 @@ const AppContent = () => {
       case 'demo':
         return <DashboardPage mode="demo" />;
       case 'balance':
-        return <BalancePage />;
+        return <BalancePage defaultTab="assets" />;
+      case 'positions':
+        return <BalancePage defaultTab="positions" />;
       case 'trade':
         return <TradePage />;
       case 'settings':
@@ -122,10 +124,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
-      <Header
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-      />
+      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
     </div>
   );
