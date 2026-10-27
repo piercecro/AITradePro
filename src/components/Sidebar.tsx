@@ -37,7 +37,7 @@ const portfolioItems: SidebarItem[] = [
 
 const portfolioSubItems: SidebarItem[] = [
   { label: 'Assets', value: 'balance', icon: Wallet },
-  { label: 'My Bot', value: 'trade', icon: Wallet },
+  { label: 'My Bot', value: 'my-bot', icon: Wallet },
 ];
 
 const monitoringItems: SidebarItem[] = [
@@ -115,7 +115,7 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
                           onClick={() => handleItemClick(subValue)}
                           className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
                             currentPage === subValue
-                              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5] font-semibold'
+                              ? 'bg-[#edf5ff] text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0] font-semibold'
                               : 'text-slate-500 hover:bg-white hover:text-slate-700'
                           }`}
                         >
