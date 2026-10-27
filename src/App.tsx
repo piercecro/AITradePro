@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { BalancePage } from './pages/BalancePage';
 import { TradePage } from './pages/TradePage';
+import { MyBotsPage } from './pages/MyBotsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
@@ -99,11 +100,11 @@ const AppContent = () => {
       case 'demo':
         return <DashboardPage mode="demo" />;
       case 'balance':
-        return <BalancePage defaultTab="assets" />;
-      case 'positions':
-        return <BalancePage defaultTab="positions" />;
+        return <BalancePage />;
       case 'trade':
         return <TradePage />;
+      case 'my-bot':
+        return <MyBotsPage />;
       case 'settings':
         return <SettingsPage />;
       case 'referral':
@@ -124,7 +125,10 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
-      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Header
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+      />
       <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
     </div>
   );
