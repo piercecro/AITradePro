@@ -5,10 +5,10 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface UserProfile {
   id: string;
-  available_balance: number;
-  total_deposited: number;
-  total_withdrawn: number;
-  total_profit: number;
+  available_balance: number | string;
+  total_deposited: number | string;
+  total_withdrawn: number | string;
+  total_profit: number | string;
 }
 
 interface Trade {
@@ -106,10 +106,10 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
     void loadData();
   }, [user]);
 
-  const portfolioBalance = profile?.available_balance ?? 0;
-  const totalProfit = profile?.total_profit ?? 0;
-  const totalDeposited = profile?.total_deposited ?? 0;
-  const totalWithdrawn = profile?.total_withdrawn ?? 0;
+  const portfolioBalance = Number(profile?.available_balance ?? 0);
+  const totalProfit = Number(profile?.total_profit ?? 0);
+  const totalDeposited = Number(profile?.total_deposited ?? 0);
+  const totalWithdrawn = Number(profile?.total_withdrawn ?? 0);
 
   const openTradePnl = useMemo(
     () =>
@@ -142,7 +142,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       currency: 'USD',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value);
+    }).format(Number(value || 0));
 
   const formatCompactCurrency = (value: number) => {
     if (!value) return '$0';
@@ -208,16 +208,10 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
               </div>
             </div>
 
-            <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
-              <span className="text-[34px] font-bold text-slate-800">${formatCurrency(portfolioBalance).replace('$', '')}</span>
-              <span className="text-slate-500">using your Supabase balance</span>
-            </div>
-
             <div className="relative h-[250px] rounded-[14px] border border-dashed border-[#d9e3ee] bg-[#f7f9fc] p-5">
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-sm text-slate-400">
                 <Wallet className="mb-2 text-slate-400" size={20} />
-                <div>Balance synced from Supabase</div>
-                <div className="mt-2 text-xl font-bold text-slate-700">{formatCurrency(portfolioBalance)}</div>
+                <div className="text-xl font-bold text-slate-700">{formatCurrency(portfolioBalance)}</div>
               </div>
             </div>
           </div>
@@ -232,7 +226,15 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 
             <div className="space-y-4">
               <div className="rounded-2xl border border-[#e6edf5] bg-[#f8fbff] p-4">
-                <div className="text-sm font-medium text-slate-500">Available balance</div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-500">Available balance</div>
+                  <button
+                    type="button"
+                    className="rounded-lg bg-[#1d73f5] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#1667d8]"
+                  >
+                    Deposit
+                  </button>
+                </div>
                 <div className="mt-2 text-[38px] font-black tracking-[-0.08em] text-slate-800">
                   {formatCurrency(portfolioBalance)}
                 </div>
@@ -246,7 +248,15 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                   </div>
                 </div>
                 <div className="rounded-2xl border border-[#e6edf5] bg-[#f8fbff] p-4">
-                  <div className="text-sm font-medium text-slate-500">Withdrawn</div>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="text-sm font-medium text-slate-500">Withdrawn</div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      Withdraw
+                    </button>
+                  </div>
                   <div className="mt-2 text-[22px] font-black tracking-[-0.06em] text-slate-800">
                     {formatCurrency(totalWithdrawn)}
                   </div>
@@ -386,3 +396,5 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
     </div>
   );
 };
+
+export default DashboardPage;
