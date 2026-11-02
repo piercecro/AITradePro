@@ -1,6 +1,11 @@
 import { ChevronLeft, ChevronDown, Bell, Plus, CreditCard, ArrowUp, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  readBotConnectionState,
+  subscribeBotConnectionState,
+  writeBotConnectionState,
+} from '../lib/botConnection';
 
 interface HeaderProps {
   currentPage: string;
@@ -13,53 +18,15 @@ const tabs = [
   { key: 'demo', label: 'Demo' },
 ];
 
-const connectBotStorageKey = 'header-bot-connect-status';
-
 export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isBotConnected, setIsBotConnected] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-
-    try {
-      const raw = localStorage.getItem(connectBotStorageKey);
-      return raw === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isBotConnected, setIsBotConnected] = useState<boolean>(() => readBotConnectionState());
   const { user, signOut } = useAuth();
 
   useEffect(() => {
-    const syncFromStorage = () => {
-      const raw = localStorage.getItem(connectBotStorageKey);
-      setIsBotConnected(raw === 'true');
-    };
-
-    syncFromStorage();
-    window.addEventListener('storage', syncFromStorage);
-    const handleBotConnectionStateChanged = (event: Event) => {
-      const customEvent = event as CustomEvent<{ connected: boolean }>;
-      setIsBotConnected(customEvent.detail.connected);
-    };
-
-    window.addEventListener('botConnectionStateChanged', handleBotConnectionStateChanged);
-
-    return () => {
-      window.removeEventListener('storage', syncFromStorage);
-      window.removeEventListener('botConnectionStateChanged', handleBotConnectionStateChanged);
-    };
+    const unsubscribe = subscribeBotConnectionState((value) => setIsBotConnected(value));
+    return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(connectBotStorageKey, String(isBotConnected));
-    window.dispatchEvent(
-      new CustomEvent('botConnectionStateChanged', {
-        detail: { connected: isBotConnected },
-      }),
-    );
-  }, [isBotConnected]);
 
   const handleMenuClick = (page: string) => {
     setShowUserMenu(false);
@@ -67,7 +34,9 @@ export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
   };
 
   const handleBotToggle = () => {
-    setIsBotConnected((previous) => !previous);
+    const nextState = !isBotConnected;
+    setIsBotConnected(nextState);
+    writeBotConnectionState(nextState);
   };
 
   return (
