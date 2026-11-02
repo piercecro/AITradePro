@@ -57,9 +57,9 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
     <aside className="fixed left-0 top-0 h-full w-[250px] border-r border-[#dfe7f0] bg-[#f7f9fc] px-4 py-5">
       <div className="mb-7 flex items-center gap-3 px-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f172a] text-[10px] font-bold text-white">
-          C
+          A
         </div>
-        <div className="text-[28px] font-black tracking-[-0.08em] text-slate-900">cornix</div>
+        <div className="text-[28px] font-black tracking-[-0.08em] text-slate-900">AITradePro</div>
       </div>
 
       <nav className="space-y-1">
