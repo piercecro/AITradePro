@@ -32,12 +32,42 @@ export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
   const { user, signOut } = useAuth();
 
   useEffect(() => {
+    const syncFromStorage = () => {
+      const raw = localStorage.getItem(connectBotStorageKey);
+      setIsBotConnected(raw === 'true');
+    };
+
+    syncFromStorage();
+    window.addEventListener('storage', syncFromStorage);
+    const handleBotConnectionStateChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{ connected: boolean }>;
+      setIsBotConnected(customEvent.detail.connected);
+    };
+
+    window.addEventListener('botConnectionStateChanged', handleBotConnectionStateChanged);
+
+    return () => {
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('botConnectionStateChanged', handleBotConnectionStateChanged);
+    };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(connectBotStorageKey, String(isBotConnected));
+    window.dispatchEvent(
+      new CustomEvent('botConnectionStateChanged', {
+        detail: { connected: isBotConnected },
+      }),
+    );
   }, [isBotConnected]);
 
   const handleMenuClick = (page: string) => {
     setShowUserMenu(false);
     onNavigate(page);
+  };
+
+  const handleBotToggle = () => {
+    setIsBotConnected((previous) => !previous);
   };
 
   return (
@@ -98,7 +128,7 @@ export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
 
         <button
           type="button"
-          onClick={() => setIsBotConnected(true)}
+          onClick={handleBotToggle}
           className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition ${
             isBotConnected
               ? 'bg-emerald-500 text-white hover:bg-emerald-600'
