@@ -30,6 +30,7 @@ type TradeRow = {
   profit_loss: number;
   status: string;
   opened_at: string;
+  closed_at?: string | null;
 };
 
 const marketInstruments: Instrument[] = [
@@ -106,33 +107,34 @@ export const TradePage = () => {
     Object.fromEntries(marketInstruments.map((instrument) => [instrument.symbol, instrument.price]))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isClosingTradeId, setIsClosingTradeId] = useState<string | null>(null);
 
   const currentInstrument =
     marketInstruments.find((instrument) => instrument.symbol === selectedSymbol) ?? marketInstruments[0];
   const currentPrice = marketPrices[currentInstrument.symbol] ?? currentInstrument.price;
 
-  useEffect(() => {
+  const loadTrades = async () => {
     if (!user) {
       setTrades([]);
       return;
     }
 
-    const loadTrades = async () => {
-      const { data, error } = await supabase
-        .from('trades')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('opened_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('opened_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading trades:', error.message);
-        setTrades([]);
-        return;
-      }
+    if (error) {
+      console.error('Error loading trades:', error.message);
+      setTrades([]);
+      return;
+    }
 
-      setTrades((data as TradeRow[]) ?? []);
-    };
+    setTrades((data as TradeRow[]) ?? []);
+  };
 
+  useEffect(() => {
     void loadTrades();
   }, [user]);
 
@@ -166,7 +168,7 @@ export const TradePage = () => {
       (instrument) =>
         instrument.symbol.toLowerCase().includes(query) ||
         instrument.label.toLowerCase().includes(query) ||
-        instrument.category.toLowerCase().includes(query)
+        instrument.category.toLowerCase().includes(query),
     );
   }, [searchTerm]);
 
@@ -186,7 +188,7 @@ export const TradePage = () => {
       trades
         .filter((trade) => trade.status === 'active')
         .reduce((sum, trade) => sum + Number(trade.amount) * Number(trade.entry_price), 0),
-    [trades]
+    [trades],
   );
 
   const openTradeCount = trades.filter((trade) => trade.status === 'active').length;
@@ -222,20 +224,41 @@ export const TradePage = () => {
 
       setSelectedSide('Buy');
       setTradeAmount(1);
-
-      const { data, error: fetchError } = await supabase
-        .from('trades')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('opened_at', { ascending: false });
-
-      if (!fetchError) {
-        setTrades((data as TradeRow[]) ?? []);
-      }
+      await loadTrades();
     } catch (err) {
       console.error('Unexpected trade insert error:', err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCloseTrade = async (tradeId: string) => {
+    if (!user) {
+      return;
+    }
+
+    setIsClosingTradeId(tradeId);
+
+    try {
+      const { error } = await supabase
+        .from('trades')
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+        })
+        .eq('id', tradeId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error closing trade:', error.message);
+        return;
+      }
+
+      await loadTrades();
+    } catch (err) {
+      console.error('Unexpected close trade error:', err);
+    } finally {
+      setIsClosingTradeId(null);
     }
   };
 
@@ -440,12 +463,13 @@ export const TradePage = () => {
                       <th className="px-4 py-3">Opened</th>
                       <th className="px-4 py-3">PnL</th>
                       <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleTrades.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-16">
+                        <td colSpan={8} className="px-4 py-16">
                           <div className="flex flex-col items-center justify-center gap-4 text-center">
                             <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300">
                               <Wallet size={24} />
@@ -485,6 +509,20 @@ export const TradePage = () => {
                               >
                                 {trade.status}
                               </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {trade.status === 'active' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCloseTrade(trade.id)}
+                                  disabled={isClosingTradeId === trade.id}
+                                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {isClosingTradeId === trade.id ? 'Closing...' : 'Close'}
+                                </button>
+                              ) : (
+                                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">-</span>
+                              )}
                             </td>
                           </tr>
                         );
