@@ -138,6 +138,19 @@ export const TradePage = () => {
     marketInstruments.find((instrument) => instrument.symbol === selectedSymbol) ?? marketInstruments[0];
   const currentPrice = marketPrices[currentInstrument.symbol] ?? currentInstrument.price;
 
+  const handleOrderSelect = (nextOrderType: OrderType) => {
+    setOrderType(nextOrderType);
+
+    if (nextOrderType === 'market') {
+      setTriggerPrice(0);
+      return;
+    }
+
+    if (triggerPrice <= 0) {
+      setTriggerPrice(currentPrice);
+    }
+  };
+
   const loadProfileBalance = async () => {
     if (!user) {
       setAvailableBalance(0);
@@ -451,7 +464,7 @@ export const TradePage = () => {
               </div>
 
               <div className="flex min-h-[180px] items-center justify-center gap-5">
-                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#dfe9f3]">
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#d9e8ff]">
                   <div className="absolute inset-[18px] rounded-full bg-[#f5f8fc]" />
                   <div className="relative text-center">
                     <div className="text-[14px] font-black tracking-[-0.04em] text-slate-800">
@@ -511,7 +524,7 @@ export const TradePage = () => {
                   <button
                     key={option}
                     type="button"
-                    onClick={() => setOrderType(option)}
+                    onClick={() => handleOrderSelect(option)}
                     className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
                       orderType === option
                         ? 'bg-[#1d73f5] text-white'
@@ -538,7 +551,7 @@ export const TradePage = () => {
                       type="number"
                       min={0}
                       step={0.0001}
-                      value={triggerPrice || currentPrice}
+                      value={triggerPrice > 0 ? triggerPrice : currentPrice}
                       onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)}
                       className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none"
                     />
@@ -712,7 +725,7 @@ export const TradePage = () => {
                                   type="button"
                                   onClick={() => handleCloseTrade(trade.id)}
                                   disabled={isClosingTradeId === trade.id}
-                                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-70"
+                                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {isClosingTradeId === trade.id ? 'Closing...' : 'Close'}
                                 </button>
