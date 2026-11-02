@@ -78,6 +78,49 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 
   const isDemoMode = mode === 'demo';
 
+  const loadDashboardData = async () => {
+    if (!user) {
+      setProfile(null);
+      setRecentTrades([]);
+      setRecentDeposits([]);
+      return;
+    }
+
+    const { data: profileData } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const { data: tradesData } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('opened_at', { ascending: false })
+      .limit(5);
+
+    const { data: depositsData } = await supabase
+      .from('deposits')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (profileData) {
+      setProfile(profileData as UserProfile);
+    }
+
+    setRecentTrades((tradesData as Trade[]) ?? []);
+    setRecentDeposits((depositsData as Deposit[]) ?? []);
+  };
+
+  const loadWallets = async () => {
+    const { data } = await supabase.from('platform_wallets').select('*');
+    if (data) {
+      setWallets(data as PlatformWallet[]);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       setProfile(null);
@@ -87,48 +130,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       return;
     }
 
-    const loadData = async () => {
-      const { data: profileData } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileData) {
-        setProfile(profileData as UserProfile);
-      }
-
-      const { data: tradesData } = await supabase
-        .from('trades')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('opened_at', { ascending: false })
-        .limit(5);
-
-      if (tradesData) {
-        setRecentTrades((tradesData as Trade[]) ?? []);
-      }
-
-      const { data: depositsData } = await supabase
-        .from('deposits')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (depositsData) {
-        setRecentDeposits((depositsData as Deposit[]) ?? []);
-      }
-    };
-
-    const loadWallets = async () => {
-      const { data } = await supabase.from('platform_wallets').select('*');
-      if (data) {
-        setWallets(data as PlatformWallet[]);
-      }
-    };
-
-    void loadData();
+    void loadDashboardData();
     void loadWallets();
   }, [user]);
 
@@ -199,11 +201,14 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 
       if (error) throw error;
 
-      window.open('https://bitpay.com', '_blank');
       setShowDepositModal(false);
       setDepositAmount('');
       setSelectedCoin('');
       setSelectedPaymentMethod('');
+      await loadDashboardData();
+      if (typeof window !== 'undefined') {
+        window.open('https://bitpay.com', '_blank');
+      }
     } catch (err: any) {
       alert('Deposit error: ' + err.message);
     }
@@ -228,6 +233,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       setShowWithdrawModal(false);
       setWithdrawAmount('');
       setWalletAddress('');
+      await loadDashboardData();
     } catch (err: any) {
       alert('Error: ' + err.message);
     }
