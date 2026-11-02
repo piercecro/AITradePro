@@ -11,7 +11,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 type TradeSide = 'Buy' | 'Sell';
-type TradeStatus = 'active' | 'closed';
 type OrderType = 'market' | 'limit' | 'take_profit' | 'stop_loss';
 
 type Instrument = {
@@ -37,12 +36,6 @@ type TradeRow = {
   execution_price?: number | null;
   stop_loss_price?: number | null;
   take_profit_price?: number | null;
-};
-
-type UserProfile = {
-  id: string;
-  available_balance: number;
-  total_profit: number;
 };
 
 const marketInstruments: Instrument[] = [
@@ -108,103 +101,6 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   });
 
-const getMarketPriceSnapshot = async (symbol: string): Promise<number> => {
-  const numeric = marketInstruments.find((item) => item.symbol === symbol)?.price ?? 1;
-
-  try {
-    if (['BTC/USD', 'ETH/USD', 'SOL/USD'].includes(symbol)) {
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${
-          symbol === 'BTC/USD' ? 'bitcoin' : symbol === 'ETH/USD' ? 'ethereum' : 'solana'
-        }&vs_currencies=usd`,
-      );
-
-      if (response.ok) {
-        const payload = await response.json();
-        const key = symbol === 'BTC/USD' ? 'bitcoin' : symbol === 'ETH/USD' ? 'ethereum' : 'solana';
-        const value = payload?.[key]?.usd;
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          return Number(value);
-        }
-      }
-    }
-
-    if (['EUR/USD', 'GBP/USD', 'AUD/USD', 'USD/JPY'].includes(symbol)) {
-      const pairs: Record<string, string> = {
-        'EUR/USD': 'EUR-USD',
-        'GBP/USD': 'GBP-USD',
-        'AUD/USD': 'AUD-USD',
-        'USD/JPY': 'USD-JPY',
-      };
-
-      const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${pairs[symbol].split('-')[0]}`);
-      if (response.ok) {
-        const data = await response.json();
-        const rate = data?.rates?.[pairs[symbol].split('-')[0]];
-        const value = pairs[symbol] === 'USD-JPY' ? 1 / Number(rate) : Number(rate);
-        if (Number.isFinite(value)) {
-          return value;
-        }
-      }
-    }
-
-    if (['NASDAQ', 'SPX', 'DAX', 'FTSE', 'VIX'].includes(symbol)) {
-      const symbolMap: Record<string, string> = {
-        NASDAQ: '^IXIC',
-        SPX: '^GSPC',
-        DAX: '^GDAXI',
-        FTSE: '^FTSE',
-        VIX: '^VIX',
-      };
-
-      const response = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${symbolMap[symbol]}?interval=1d&range=1d`,
-      );
-
-      if (response.ok) {
-        const payload = await response.json();
-        const value = payload?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          return Number(value);
-        }
-      }
-    }
-
-    if (['AAPL', 'MSFT', 'NVDA', 'TSLA'].includes(symbol)) {
-      const response = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
-      );
-
-      if (response.ok) {
-        const payload = await response.json();
-        const value = payload?.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          return Number(value);
-        }
-      }
-    }
-
-    if (['US10Y', 'US30Y'].includes(symbol)) {
-      return numeric;
-    }
-
-    if (['XAU/USD', 'XAG/USD'].includes(symbol)) {
-      const response = await fetch('https://api.gold-api.com/price/XAU');
-      if (response.ok) {
-        const payload = await response.json();
-        const value = payload?.price;
-        if (typeof value === 'number' && Number.isFinite(value)) {
-          return Number(value);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn(`Live price fetch failed for ${symbol}:`, error);
-  }
-
-  return numeric;
-};
-
 const getOrderLabel = (orderType: OrderType) => {
   switch (orderType) {
     case 'market':
@@ -228,8 +124,7 @@ export const TradePage = () => {
   const [selectedSide, setSelectedSide] = useState<TradeSide>('Buy');
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [tradeAmount, setTradeAmount] = useState<number>(1);
-  const [limitPrice, setLimitPrice] = useState<number>(0);
-  const [entryPriceInput, setEntryPriceInput] = useState<number>(0);
+  const [triggerPrice, setTriggerPrice] = useState<number>(0);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>(() =>
     Object.fromEntries(marketInstruments.map((instrument) => [instrument.symbol, instrument.price])),
@@ -291,28 +186,25 @@ export const TradePage = () => {
   }, [user]);
 
   useEffect(() => {
-    const refreshTicker = async () => {
-      const next: Record<string, number> = {};
+    const refreshTicker = () => {
+      setMarketPrices((prev) => {
+        const next: Record<string, number> = { ...prev };
 
-      for (const instrument of marketInstruments) {
-        try {
-          const livePrice = await getMarketPriceSnapshot(instrument.symbol);
-          next[instrument.symbol] = Number(livePrice.toFixed(4));
-        } catch (error) {
-          console.warn('Market refresh failed for', instrument.symbol, error);
-          next[instrument.symbol] = instrument.price;
+        for (const instrument of marketInstruments) {
+          const lastPrice = prev[instrument.symbol] ?? instrument.price;
+          const moveFactor = instrument.category === 'Index' ? 0.008 : instrument.category === 'Bond' ? 0.004 : 0.015;
+          const drift = (Math.random() - 0.5) * moveFactor;
+          const updated = Math.max(lastPrice * (1 + drift), 0.0001);
+          next[instrument.symbol] = Number(updated.toFixed(4));
         }
-      }
 
-      setMarketPrices(next);
+        return next;
+      });
     };
 
-    void refreshTicker();
+    refreshTicker();
 
-    const interval = window.setInterval(() => {
-      void refreshTicker();
-    }, 15000);
-
+    const interval = window.setInterval(refreshTicker, 12000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -358,15 +250,15 @@ export const TradePage = () => {
     }
 
     if (orderType === 'limit') {
-      return Number(limitPrice > 0 ? limitPrice : currentPrice);
+      return triggerPrice > 0 ? triggerPrice : currentPrice;
     }
 
     if (orderType === 'take_profit') {
-      return Number(entryPriceInput > 0 ? entryPriceInput : currentPrice);
+      return triggerPrice > 0 ? triggerPrice : currentPrice;
     }
 
     if (orderType === 'stop_loss') {
-      return Number(entryPriceInput > 0 ? entryPriceInput : currentPrice);
+      return triggerPrice > 0 ? triggerPrice : currentPrice;
     }
 
     return currentPrice;
@@ -418,8 +310,8 @@ export const TradePage = () => {
         opened_at: new Date().toISOString(),
         order_type: orderType,
         execution_price: executionPrice,
-        stop_loss_price: orderType === 'stop_loss' ? Number(entryPriceInput || executionPrice) : null,
-        take_profit_price: orderType === 'take_profit' ? Number(entryPriceInput || executionPrice) : null,
+        stop_loss_price: orderType === 'stop_loss' ? triggerPrice || executionPrice : null,
+        take_profit_price: orderType === 'take_profit' ? triggerPrice || executionPrice : null,
       });
 
       if (error) {
@@ -436,8 +328,7 @@ export const TradePage = () => {
       setSelectedSide('Buy');
       setOrderType('market');
       setTradeAmount(1);
-      setLimitPrice(0);
-      setEntryPriceInput(0);
+      setTriggerPrice(0);
       await loadTrades();
       await loadProfileBalance();
     } catch (err) {
@@ -647,8 +538,8 @@ export const TradePage = () => {
                       type="number"
                       min={0}
                       step={0.0001}
-                      value={entryPriceInput || currentPrice}
-                      onChange={(event) => setEntryPriceInput(Number(event.target.value) || 0)}
+                      value={triggerPrice || currentPrice}
+                      onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)}
                       className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none"
                     />
                   </div>
