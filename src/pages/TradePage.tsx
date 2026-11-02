@@ -36,6 +36,8 @@ type TradeRow = {
   execution_price?: number | null;
   stop_loss_price?: number | null;
   take_profit_price?: number | null;
+  token_pair?: string | null;
+  created_at?: string | null;
 };
 
 const marketInstruments: Instrument[] = [
@@ -116,6 +118,25 @@ const getOrderLabel = (orderType: OrderType) => {
   }
 };
 
+const normalizeTrade = (trade: any): TradeRow => ({
+  id: trade.id,
+  trading_pair: trade.token_pair ?? trade.trading_pair ?? '',
+  trade_type: trade.trade_type ?? 'buy',
+  amount: Number(trade.amount ?? 0),
+  entry_price: Number(trade.execution_price ?? trade.entry_price ?? 0),
+  exit_price: trade.exit_price ?? null,
+  profit_loss: Number(trade.profit_loss ?? 0),
+  status: trade.status ?? 'active',
+  opened_at: trade.created_at ?? trade.opened_at ?? new Date().toISOString(),
+  closed_at: trade.closed_at ?? null,
+  order_type: trade.order_type ?? 'market',
+  execution_price: Number(trade.execution_price ?? trade.entry_price ?? 0),
+  stop_loss_price: trade.stop_loss_price ?? null,
+  take_profit_price: trade.take_profit_price ?? null,
+  token_pair: trade.token_pair ?? null,
+  created_at: trade.created_at ?? null,
+});
+
 export const TradePage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('Open');
@@ -182,7 +203,7 @@ export const TradePage = () => {
       .from('trades')
       .select('*')
       .eq('user_id', user.id)
-      .order('opened_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error loading trades:', error.message);
@@ -190,7 +211,7 @@ export const TradePage = () => {
       return;
     }
 
-    setTrades((data as TradeRow[]) ?? []);
+    setTrades((data ?? []).map(normalizeTrade));
   };
 
   useEffect(() => {
@@ -313,16 +334,17 @@ export const TradePage = () => {
 
       const { error } = await supabase.from('trades').insert({
         user_id: user.id,
+        token_pair: currentInstrument.symbol,
         trading_pair: currentInstrument.symbol,
         trade_type: selectedSide.toLowerCase(),
         amount: tradeAmount,
         entry_price: executionPrice,
-        exit_price: null,
+        execution_price: executionPrice,
         profit_loss: 0,
         status: 'active',
+        created_at: new Date().toISOString(),
         opened_at: new Date().toISOString(),
         order_type: orderType,
-        execution_price: executionPrice,
         stop_loss_price: orderType === 'stop_loss' ? triggerPrice || executionPrice : null,
         take_profit_price: orderType === 'take_profit' ? triggerPrice || executionPrice : null,
       });
@@ -390,8 +412,8 @@ export const TradePage = () => {
         .from('trades')
         .update({
           status: 'closed',
-          exit_price: closePrice,
           profit_loss: pnl,
+          exit_price: closePrice,
           closed_at: new Date().toISOString(),
         })
         .eq('id', tradeId)
@@ -464,7 +486,7 @@ export const TradePage = () => {
               </div>
 
               <div className="flex min-h-[180px] items-center justify-center gap-5">
-                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#d9e8ff]">
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#d6dff3]">
                   <div className="absolute inset-[18px] rounded-full bg-[#f5f8fc]" />
                   <div className="relative text-center">
                     <div className="text-[14px] font-black tracking-[-0.04em] text-slate-800">
