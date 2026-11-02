@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Search, Plus, SlidersHorizontal } from 'lucide-react';
+import { fetchBotMarketSnapshot, pairToCoinGeckoId, type BotMarketMap } from '../lib/marketData';
+import {
+  readBotConnectionState,
+  subscribeBotConnectionState,
+  writeBotConnectionState,
+} from '../lib/botConnection';
 
 interface BotCard {
   id: string;
@@ -36,6 +42,26 @@ const botSeeds: BotCard[] = [
   { id: 'bot-18', name: 'Aurora Current W-5 Bot', pair: 'FIL/USDT', strategy: 'Bybit', pnl: 41.11, last90: 7.7, avgMonthly: 6.2, daysRunning: 44, color: '#22c55e', accent: '#dcfce7', symbol: 'A' },
   { id: 'bot-19', name: 'Zenith Harbor P-7 Bot', pair: 'UNI/USDT', strategy: 'Binance Futures', pnl: 29.99, last90: 15.1, avgMonthly: 9.3, daysRunning: 99, color: '#8b5cf6', accent: '#ede9fe', symbol: 'Z' },
   { id: 'bot-20', name: 'Violet Ember N-2 Bot', pair: 'ARB/USDT', strategy: 'Binance', pnl: 72.66, last90: 26.8, avgMonthly: 17.1, daysRunning: 304, color: '#a855f7', accent: '#f3e8ff', symbol: 'V' },
+  { id: 'bot-21', name: 'Ember Current L-9 Bot', pair: 'MATIC/USDT', strategy: 'Binance', pnl: 64.18, last90: 21.7, avgMonthly: 12.4, daysRunning: 88, color: '#14b8a6', accent: '#ccfbf1', symbol: 'E' },
+  { id: 'bot-22', name: 'Helix Pulse X-4 Bot', pair: 'ATOM/USDT', strategy: 'Bybit', pnl: 33.41, last90: 8.9, avgMonthly: 5.9, daysRunning: 128, color: '#f43f5e', accent: '#ffe4e6', symbol: 'H' },
+  { id: 'bot-23', name: 'Cinder Signal B-2 Bot', pair: 'DOT/USDT', strategy: 'Binance Futures', pnl: 71.2, last90: 28.4, avgMonthly: 11.3, daysRunning: 55, color: '#f97316', accent: '#fed7aa', symbol: 'C' },
+  { id: 'bot-24', name: 'Orion Echo Q-7 Bot', pair: 'ETC/USDT', strategy: 'Coinbase Advanced', pnl: 48.7, last90: 16.9, avgMonthly: 9.1, daysRunning: 112, color: '#64748b', accent: '#e2e8f0', symbol: 'O' },
+  { id: 'bot-25', name: 'Signal Reef K-1 Bot', pair: 'XLM/USDT', strategy: 'Kraken', pnl: 36.9, last90: 13.8, avgMonthly: 7.9, daysRunning: 210, color: '#7c3aed', accent: '#f3e8ff', symbol: 'S' },
+  { id: 'bot-26', name: 'Summit Drift R-5 Bot', pair: 'EOS/USDT', strategy: 'Binance Futures', pnl: 52.2, last90: 22.8, avgMonthly: 10.2, daysRunning: 95, color: '#0ea5e9', accent: '#dbeafe', symbol: 'S' },
+  { id: 'bot-27', name: 'Northstar Grid Y-3 Bot', pair: 'VET/USDT', strategy: 'Binance', pnl: 61.3, last90: 18.1, avgMonthly: 8.4, daysRunning: 148, color: '#a78bfa', accent: '#ede9fe', symbol: 'N' },
+  { id: 'bot-28', name: 'Apex Relay Z-8 Bot', pair: 'THETA/USDT', strategy: 'Binance Futures', pnl: 40.1, last90: 15.4, avgMonthly: 11.8, daysRunning: 76, color: '#e11d48', accent: '#ffe4e6', symbol: 'A' },
+  { id: 'bot-29', name: 'Quantum Drift S-4 Bot', pair: 'RNDR/USDT', strategy: 'Binance Futures', pnl: 54.8, last90: 19.6, avgMonthly: 13.7, daysRunning: 63, color: '#22c55e', accent: '#dcfce7', symbol: 'Q' },
+  { id: 'bot-30', name: 'Velvet Flux H-7 Bot', pair: 'ALGO/USDT', strategy: 'Binance', pnl: 58.6, last90: 17.4, avgMonthly: 12.1, daysRunning: 100, color: '#0284c7', accent: '#e0f2fe', symbol: 'V' },
+  { id: 'bot-31', name: 'Luna Arcade C-3 Bot', pair: 'PEPE/USDT', strategy: 'Binance', pnl: 46.7, last90: 20.4, avgMonthly: 9.8, daysRunning: 74, color: '#f59e0b', accent: '#fef3c7', symbol: 'L' },
+  { id: 'bot-32', name: 'Blue Harbor K-5 Bot', pair: 'MANTA/USDT', strategy: 'Bybit', pnl: 44.6, last90: 14.3, avgMonthly: 10.7, daysRunning: 83, color: '#0f766e', accent: '#ccfbf1', symbol: 'B' },
+  { id: 'bot-33', name: 'Prism Harbor U-2 Bot', pair: 'SEI/USDT', strategy: 'Coinbase Advanced', pnl: 52.3, last90: 16.8, avgMonthly: 11.9, daysRunning: 98, color: '#f97316', accent: '#fed7aa', symbol: 'P' },
+  { id: 'bot-34', name: 'Nova Drift M-8 Bot', pair: 'JUP/USDT', strategy: 'Binance Futures', pnl: 49.2, last90: 18.9, avgMonthly: 12.6, daysRunning: 118, color: '#1d4ed8', accent: '#dbeafe', symbol: 'N' },
+  { id: 'bot-35', name: 'Astra Dusk T-9 Bot', pair: 'OP/USDT', strategy: 'Bybit', pnl: 60.7, last90: 19.1, avgMonthly: 13.1, daysRunning: 140, color: '#7c3aed', accent: '#f3e8ff', symbol: 'A' },
+  { id: 'bot-36', name: 'Zenith Deep P-2 Bot', pair: 'INJ/USDT', strategy: 'Binance Futures', pnl: 42.8, last90: 15.5, avgMonthly: 8.7, daysRunning: 76, color: '#0ea5e9', accent: '#dff6ff', symbol: 'Z' },
+  { id: 'bot-37', name: 'Orca Signal T-5 Bot', pair: 'TIA/USDT', strategy: 'Binance', pnl: 38.3, last90: 13.2, avgMonthly: 8.8, daysRunning: 88, color: '#22c55e', accent: '#dcfce7', symbol: 'O' },
+  { id: 'bot-38', name: 'Flashpoint D-4 Bot', pair: 'WIF/USDT', strategy: 'Binance', pnl: 51.4, last90: 21.3, avgMonthly: 10.5, daysRunning: 97, color: '#f43f5e', accent: '#ffe4e6', symbol: 'F' },
+  { id: 'bot-39', name: 'Solaris Beam R-1 Bot', pair: 'BONK/USDT', strategy: 'Binance Futures', pnl: 45.9, last90: 17.9, avgMonthly: 9.3, daysRunning: 79, color: '#f59e0b', accent: '#fef3c7', symbol: 'S' },
+  { id: 'bot-40', name: 'Frostline B-2 Bot', pair: 'MSTR/USDT', strategy: 'Binance', pnl: 60.7, last90: 18.8, avgMonthly: 13.4, daysRunning: 110, color: '#0f172a', accent: '#dbeafe', symbol: 'F' },
 ];
 
 const storageKey = 'my-bots-connections';
@@ -56,6 +82,8 @@ const makePath = (seed: number) => {
 };
 
 export const MyBotsPage = () => {
+  const [marketData, setMarketData] = useState<BotMarketMap>({});
+  const [isGlobalConnected, setIsGlobalConnected] = useState<boolean>(() => readBotConnectionState());
   const [connected, setConnected] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') {
       return {};
@@ -70,16 +98,64 @@ export const MyBotsPage = () => {
   });
 
   useEffect(() => {
+    const unsubscribe = subscribeBotConnectionState((value) => setIsGlobalConnected(value));
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(connected));
   }, [connected]);
 
-  const connectedCount = useMemo(() => Object.values(connected).filter(Boolean).length, [connected]);
+  useEffect(() => {
+    const allPairs = botSeeds.map((bot) => bot.pair);
+
+    void fetchBotMarketSnapshot(allPairs)
+      .then((data) => setMarketData(data))
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const allPairs = botSeeds.map((bot) => bot.pair);
+
+      void fetchBotMarketSnapshot(allPairs)
+        .then((data) => setMarketData(data))
+        .catch(() => undefined);
+    }, 30000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const connectedCount = useMemo(() => {
+    const total = Object.values(connected).filter(Boolean).length;
+    return isGlobalConnected ? botSeeds.length : total;
+  }, [connected, isGlobalConnected]);
 
   const toggleConnection = (id: string) => {
+    if (isGlobalConnected) {
+      writeBotConnectionState(false);
+      setIsGlobalConnected(false);
+      return;
+    }
+
     setConnected((prev) => ({
       ...prev,
       [id]: !prev[id],
     }));
+  };
+
+  const getLiveBotStats = (bot: BotCard) => {
+    const key = pairToCoinGeckoId(bot.pair);
+    const snapshot = marketData[key];
+    const price = snapshot?.price ?? 1;
+    const change24h = snapshot?.change24h ?? 0;
+
+    return {
+      price,
+      change24h,
+      livePnl: Number((bot.pnl + change24h * 0.9).toFixed(2)),
+      liveReturn: Number((bot.pnl + change24h).toFixed(2)),
+    };
   };
 
   return (
@@ -113,7 +189,8 @@ export const MyBotsPage = () => {
         <div className="grid grid-cols-[1fr_300px] gap-5">
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 2xl:grid-cols-3">
             {botSeeds.map((bot, index) => {
-              const isConnected = !!connected[bot.id];
+              const botStats = getLiveBotStats(bot);
+              const isConnected = isGlobalConnected || !!connected[bot.id];
               const lineSeed = makePath(index + 1);
 
               return (
@@ -148,7 +225,7 @@ export const MyBotsPage = () => {
                   <div className="mb-4 flex items-center gap-2">
                     <span className={`text-base font-black ${bot.pnl >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                       {bot.pnl >= 0 ? '+' : ''}
-                      {bot.pnl.toFixed(2)}%
+                      {botStats.livePnl.toFixed(2)}%
                     </span>
                     <span className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">Total Profit</span>
                   </div>
@@ -165,12 +242,17 @@ export const MyBotsPage = () => {
                       <div className="mt-1 text-sm font-bold text-slate-800">{bot.last90.toFixed(2)}%</div>
                     </div>
                     <div className="rounded-xl bg-[#f4f8fc] px-2 py-2">
-                      <div className="text-[11px] text-slate-500">Avg Monthly</div>
-                      <div className="mt-1 text-sm font-bold text-slate-800">{bot.avgMonthly.toFixed(2)}%</div>
+                      <div className="text-[11px] text-slate-500">Live Price</div>
+                      <div className="mt-1 text-sm font-bold text-slate-800">
+                        ${botStats.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </div>
                     </div>
                     <div className="rounded-xl bg-[#f4f8fc] px-2 py-2">
-                      <div className="text-[11px] text-slate-500">Days Running</div>
-                      <div className="mt-1 text-sm font-bold text-slate-800">{bot.daysRunning}</div>
+                      <div className="text-[11px] text-slate-500">24h</div>
+                      <div className={`mt-1 text-sm font-bold ${botStats.change24h >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        {botStats.change24h >= 0 ? '+' : ''}
+                        {botStats.change24h.toFixed(2)}%
+                      </div>
                     </div>
                   </div>
 
