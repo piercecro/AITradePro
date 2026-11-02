@@ -40,6 +40,14 @@ interface MarketEntry {
   price_change_percentage_24h: number;
 }
 
+interface PlatformWallet {
+  id: number;
+  coin: string;
+  network: string;
+  address: string;
+  label: string;
+}
+
 const marketTabs: MarketTab[] = ['Volume', 'Top Gainers', 'Top Losers', 'New'];
 
 const staticMarketEntries: MarketEntry[] = [
@@ -58,6 +66,15 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
   const [recentDeposits, setRecentDeposits] = useState<Deposit[]>([]);
   const [marketEntries, setMarketEntries] = useState<MarketEntry[]>(staticMarketEntries);
   const [marketTab, setMarketTab] = useState<MarketTab>('Volume');
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [wallets, setWallets] = useState<PlatformWallet[]>([]);
+  const [selectedCoin, setSelectedCoin] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [cryptoType, setCryptoType] = useState('BTC');
 
   const isDemoMode = mode === 'demo';
 
@@ -66,6 +83,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       setProfile(null);
       setRecentTrades([]);
       setRecentDeposits([]);
+      setWallets([]);
       return;
     }
 
@@ -103,7 +121,15 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       }
     };
 
+    const loadWallets = async () => {
+      const { data } = await supabase.from('platform_wallets').select('*');
+      if (data) {
+        setWallets(data as PlatformWallet[]);
+      }
+    };
+
     void loadData();
+    void loadWallets();
   }, [user]);
 
   const portfolioBalance = Number(profile?.available_balance ?? 0);
@@ -156,6 +182,55 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
     if (value >= 1000) return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
     if (value >= 0.01) return value.toFixed(2);
     return value.toFixed(4);
+  };
+
+  const selectedWallet = wallets.find((w) => w.coin.toLowerCase() === selectedCoin.toLowerCase());
+
+  const handleDeposit = async () => {
+    if (!user || !selectedCoin || !depositAmount) return;
+
+    try {
+      const { error } = await supabase.from('deposits').insert({
+        user_id: user.id,
+        amount: Number(depositAmount),
+        payment_method: `${selectedCoin} (${selectedPaymentMethod})`,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      window.open('https://bitpay.com', '_blank');
+      setShowDepositModal(false);
+      setDepositAmount('');
+      setSelectedCoin('');
+      setSelectedPaymentMethod('');
+    } catch (err: any) {
+      alert('Deposit error: ' + err.message);
+    }
+  };
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) return;
+
+    try {
+      const { error } = await supabase.from('withdrawals').insert({
+        user_id: user.id,
+        amount: Number(withdrawAmount),
+        wallet_address: walletAddress,
+        crypto_type: cryptoType,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      setShowWithdrawModal(false);
+      setWithdrawAmount('');
+      setWalletAddress('');
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    }
   };
 
   if (loading) {
@@ -230,6 +305,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                   <div className="text-sm font-medium text-slate-500">Available balance</div>
                   <button
                     type="button"
+                    onClick={() => setShowDepositModal(true)}
                     className="rounded-lg bg-[#1d73f5] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#1667d8]"
                   >
                     Deposit
@@ -252,6 +328,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                     <div className="text-sm font-medium text-slate-500">Withdrawn</div>
                     <button
                       type="button"
+                      onClick={() => setShowWithdrawModal(true)}
                       className="rounded-lg border border-[#dfe7f0] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
                     >
                       Withdraw
@@ -393,6 +470,165 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
           </div>
         </section>
       </div>
+
+      {showDepositModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl">
+            <h3 className="mb-6 text-2xl font-bold text-slate-800">Select Payment Method</h3>
+
+            <div className="mb-6 space-y-4">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMethod('crypto')}
+                className={`w-full rounded-xl border-2 p-4 text-left transition ${
+                  selectedPaymentMethod === 'crypto' ? 'border-[#1d73f5] bg-[#eff6ff]' : 'border-[#dfe7f0] hover:border-[#c7d7ef]'
+                }`}
+              >
+                <div className="font-semibold text-slate-800">Cryptocurrency</div>
+                <div className="mt-1 text-sm text-slate-500">BTC, USDT, USDC, LTC, BNB, ETH</div>
+              </button>
+            </div>
+
+            {selectedPaymentMethod === 'crypto' && (
+              <>
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm text-slate-500">Select Coin</label>
+                  <select
+                    value={selectedCoin}
+                    onChange={(e) => setSelectedCoin(e.target.value)}
+                    className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                  >
+                    <option value="">-- Select Coin --</option>
+                    {wallets.map((wallet) => (
+                      <option key={wallet.id} value={wallet.coin}>
+                        {wallet.coin} ({wallet.network})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm text-slate-500">Amount (USD)</label>
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    min="1"
+                    className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {selectedCoin && selectedWallet && (
+              <div className="mb-6 rounded-xl border border-[#dfe7f0] bg-[#f8fbff] p-4">
+                <div className="mb-2 text-sm text-slate-500">{selectedWallet.label} Address</div>
+                <div className="break-all font-mono text-sm text-slate-700">{selectedWallet.address}</div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDepositModal(false);
+                  setSelectedPaymentMethod('');
+                  setSelectedCoin('');
+                  setDepositAmount('');
+                }}
+                className="flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeposit}
+                disabled={!selectedPaymentMethod || !selectedCoin || !depositAmount}
+                className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl">
+            <h3 className="mb-6 text-2xl font-bold text-slate-800">Withdraw Funds</h3>
+
+            <form onSubmit={handleWithdraw} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm text-slate-500">Amount (USD)</label>
+                <input
+                  type="number"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  min="10"
+                  step="0.01"
+                  required
+                  placeholder="Enter amount"
+                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-slate-500">Cryptocurrency</label>
+                <select
+                  value={cryptoType}
+                  onChange={(e) => setCryptoType(e.target.value)}
+                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                >
+                  <option value="BTC">Bitcoin (BTC)</option>
+                  <option value="USDT">Tether (USDT)</option>
+                  <option value="USDC">USD Coin (USDC)</option>
+                  <option value="LTC">Litecoin (LTC)</option>
+                  <option value="BNB">Binance Coin (BNB)</option>
+                  <option value="ETH">Ethereum (ETH)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-slate-500">Wallet Address</label>
+                <input
+                  type="text"
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                  required
+                  placeholder="Enter your wallet address"
+                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 font-mono text-sm text-slate-700 outline-none"
+                />
+              </div>
+
+              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700">
+                Your withdrawal will be reviewed by our team. This usually takes 24–48 hours.
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWithdrawModal(false);
+                    setWithdrawAmount('');
+                    setWalletAddress('');
+                  }}
+                  className="flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8]"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
