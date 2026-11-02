@@ -7,6 +7,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
+  signInWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -200,6 +201,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+    setLoading(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (err: any) {
+      console.error(`OAuth sign in failed for ${provider}:`, err);
+      setErrorMessage(err?.message || `Unable to sign in with ${provider}.`);
+      setShowError(true);
+      setTimeout(() => {
+        setShowError(false);
+        setTimeout(() => setErrorMessage(null), 500);
+      }, 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     setLoading(true);
     try {
@@ -253,7 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         </div>
       )}
 
-      <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+      <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithOAuth, signOut }}>
         {children}
       </AuthContext.Provider>
     </>
