@@ -312,7 +312,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                   <button
                     type="button"
                     onClick={() => setShowDepositModal(true)}
-                    className="rounded-lg bg-[#1d73f5] px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#1667d8]"
+                    className="rounded-lg bg-[#1d73f5] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#1667d8]"
                   >
                     Deposit
                   </button>
