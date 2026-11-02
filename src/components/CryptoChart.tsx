@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface CandleData {
   date: string;
@@ -135,11 +135,6 @@ const MARKET_PAIRS = [...DEFAULT_CRYPTO_PAIRS, ...FX_PAIRS] as const;
 
 type MarketPair = typeof MARKET_PAIRS[number]['key'];
 
-type Timeframe = '7D' | '30D' | '90D';
-type TradingTool = 'Crosshair' | 'Trend' | 'Indicators' | 'Measure';
-type ChartMode = 'Candles' | 'Line';
-type IndicatorMode = 'None' | 'MA' | 'RSI' | 'MACD';
-
 const RANGE_OPTIONS: Timeframe[] = ['7D', '30D', '90D'];
 const TOOL_OPTIONS: TradingTool[] = ['Crosshair', 'Trend', 'Indicators', 'Measure'];
 const CHART_MODES: ChartMode[] = ['Candles', 'Line'];
@@ -261,7 +256,7 @@ const fetchCryptoCandleData = async (pair: MarketPair, days: number) => {
 
   try {
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${metadata.id}/ohlc?vs_currency=${metadata.quote}&days=${days}`
+      `https://api.coingecko.com/api/v3/coins/${metadata.id}/ohlc?vs_currency=${metadata.quote}&days=${days}`,
     );
 
     if (!response.ok) {
@@ -305,7 +300,7 @@ const fetchFxCandleData = async (pair: MarketPair, days: number) => {
     const startStr = start.toISOString().slice(0, 10);
     const endStr = end.toISOString().slice(0, 10);
     const response = await fetch(
-      `https://api.frankfurter.app/${startStr}..${endStr}?from=${config.from}&to=${config.to}`
+      `https://api.frankfurter.app/${startStr}..${endStr}?from=${config.from}&to=${config.to}`,
     );
 
     if (!response.ok) {
@@ -374,7 +369,7 @@ const CandleChart = ({
   indicatorMode: IndicatorMode;
 }) => {
   const width = 960;
-  const height = 360;
+  const height = 520;
   const padding = 36;
   const maxPrice = Math.max(...data.map((d) => d.high));
   const minPrice = Math.min(...data.map((d) => d.low));
@@ -408,10 +403,10 @@ const CandleChart = ({
   }).join(' ');
 
   return (
-    <div className="relative h-[420px] w-full">
+    <div className="relative h-[520px] w-full overflow-hidden rounded-xl">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-full"
+        className="h-full w-full"
         style={{ cursor: activeTool === 'Crosshair' ? 'crosshair' : 'default' }}
         role="img"
         aria-label="Market candles"
@@ -460,7 +455,7 @@ const CandleChart = ({
         <line x1={padding} x2={width - padding} y1={hoverY} y2={hoverY} stroke="#93c5fd" strokeDasharray="6 6" opacity={0.8} />
       </svg>
 
-      <div className="absolute top-3 left-3 rounded-md border border-blue-500/40 bg-slate-900/80 px-2 py-1 text-xs text-blue-200 shadow-lg">
+      <div className="absolute left-3 top-3 rounded-md border border-blue-500/40 bg-slate-900/80 px-2 py-1 text-xs text-blue-200 shadow-lg">
         {hoveredPoint ? `${hoveredPoint.date}: ${formatPrice(hoveredPoint.close, selectedPair)}` : 'No price data'}
       </div>
     </div>
@@ -520,7 +515,7 @@ export const CryptoChart = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#13151f] text-gray-400 p-8 rounded-xl text-center border border-gray-800">
+      <div className="rounded-xl border border-gray-800 bg-[#13151f] p-8 text-center text-gray-400">
         Loading market data...
       </div>
     );
@@ -543,48 +538,46 @@ export const CryptoChart = () => {
   };
 
   return (
-    <div className="bg-[#13151f] p-5 rounded-xl border border-gray-800 shadow-2xl shadow-slate-950/40">
+    <div className="rounded-xl border border-gray-800 bg-[#13151f] p-5 shadow-2xl shadow-slate-950/40">
       <div className="mb-4 flex flex-col gap-3 border-b border-gray-800 pb-4">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-md bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-600 to-cyan-500 text-xs font-bold text-white">
               {selectedPair.split('/')[0].slice(0, 2)}
             </div>
             <div>
               <div className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Terminal</div>
-              <div className="text-white text-xl font-semibold">{selectedPair}</div>
+              <div className="text-xl font-semibold text-white">{selectedPair}</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-5 text-sm flex-wrap">
+          <div className="flex flex-wrap items-center gap-5 text-sm">
             <div className="text-gray-300">
-              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Last</div>
-              <div className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400">Last</div>
+              <div className="font-semibold text-white">{formatPrice(latest?.close ?? 0, selectedPair)}</div>
             </div>
             <div className="text-gray-300">
-              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Change</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400">Change</div>
               <div className={`font-semibold ${move >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {move >= 0 ? '+' : ''}
                 {move.toFixed(2)}%
               </div>
             </div>
             <div className="text-gray-300">
-              <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Status</div>
-              <div className="text-green-500 font-semibold">Online</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400">Status</div>
+              <div className="font-semibold text-green-500">Online</div>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
             {TOOL_OPTIONS.map((tool) => (
               <button
                 key={tool}
                 onClick={() => setActiveTool(tool)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  activeTool === tool
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  activeTool === tool ? 'bg-blue-600 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
                 }`}
               >
                 {tool}
@@ -592,15 +585,13 @@ export const CryptoChart = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             {RANGE_OPTIONS.map((range) => (
               <button
                 key={range}
                 onClick={() => setSelectedRange(range)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  selectedRange === range
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  selectedRange === range ? 'bg-blue-600 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
                 }`}
               >
                 {range}
@@ -609,16 +600,14 @@ export const CryptoChart = () => {
           </div>
         </div>
 
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap gap-2">
             {MARKET_PAIRS.map((pair) => (
               <button
                 key={pair.key}
                 onClick={() => setSelectedPair(pair.key as MarketPair)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  selectedPair === pair.key
-                    ? 'bg-cyan-600 text-white'
-                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  selectedPair === pair.key ? 'bg-cyan-600 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
                 }`}
               >
                 {pair.key}
@@ -626,15 +615,13 @@ export const CryptoChart = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             {CHART_MODES.map((mode) => (
               <button
                 key={mode}
                 onClick={() => setChartMode(mode)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                  chartMode === mode
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  chartMode === mode ? 'bg-emerald-600 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
                 }`}
               >
                 {mode}
@@ -644,7 +631,7 @@ export const CryptoChart = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
             <div className="text-gray-300">
@@ -657,10 +644,8 @@ export const CryptoChart = () => {
                   key={indicator}
                   type="button"
                   onClick={() => setIndicatorMode(indicator)}
-                  className={`px-2 py-1 rounded text-[10px] font-semibold transition ${
-                    indicatorMode === indicator
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
+                  className={`rounded px-2 py-1 text-[10px] font-semibold transition ${
+                    indicatorMode === indicator ? 'bg-slate-700 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
                   }`}
                 >
                   {indicator}
@@ -669,7 +654,7 @@ export const CryptoChart = () => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-800 bg-[#10141d] p-3">
+          <div className="overflow-hidden rounded-xl border border-gray-800 bg-[#10141d] p-0">
             <CandleChart
               data={data}
               selectedPair={selectedPair}
@@ -686,10 +671,10 @@ export const CryptoChart = () => {
           <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Watchlist</div>
-                <div className="text-white text-lg font-semibold">Markets</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400">Watchlist</div>
+                <div className="text-lg font-semibold text-white">Markets</div>
               </div>
-              <div className="rounded-full border border-gray-700 bg-[#1a1d29] px-2 py-1 text-[10px] text-gray-300 uppercase tracking-[0.18em]">
+              <div className="rounded-full border border-gray-700 bg-[#1a1d29] px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gray-300">
                 {selectedRange}
               </div>
             </div>
@@ -700,10 +685,8 @@ export const CryptoChart = () => {
                   key={item.pair}
                   type="button"
                   onClick={() => setSelectedPair(item.pair as MarketPair)}
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left transition ${
-                    selectedPair === item.pair
-                      ? 'bg-blue-600/20 border border-blue-500/30 text-white'
-                      : 'bg-[#171c27] text-gray-300 hover:bg-[#1d2430]'
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
+                    selectedPair === item.pair ? 'border border-blue-500/30 bg-blue-600/20 text-white' : 'bg-[#171c27] text-gray-300 hover:bg-[#1d2430]'
                   }`}
                 >
                   <div className="flex flex-col">
@@ -722,10 +705,10 @@ export const CryptoChart = () => {
           <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="text-gray-400 text-[10px] uppercase tracking-[0.14em]">Order Ticket</div>
-                <div className="text-white text-lg font-semibold">{selectedPair}</div>
+                <div className="text-[10px] uppercase tracking-[0.14em] text-gray-400">Order Ticket</div>
+                <div className="text-lg font-semibold text-white">{selectedPair}</div>
               </div>
-              <div className="text-gray-400 text-xs">{pointerLabel}</div>
+              <div className="text-xs text-gray-400">{pointerLabel}</div>
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-2">
@@ -740,7 +723,7 @@ export const CryptoChart = () => {
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
                 <span className="text-gray-400">Price</span>
-                <span className="text-white font-semibold">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
+                <span className="font-semibold text-white">{formatPrice(latest?.close ?? 0, selectedPair)}</span>
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
@@ -757,16 +740,14 @@ export const CryptoChart = () => {
 
               <div className="flex items-center justify-between rounded-lg bg-[#171c27] px-3 py-2">
                 <span className="text-gray-400">Estimated</span>
-                <span className="text-white font-semibold">{formatCurrency((latest?.close ?? 0) * tradeVolume)}</span>
+                <span className="font-semibold text-white">{formatCurrency((latest?.close ?? 0) * tradeVolume)}</span>
               </div>
             </div>
 
             <button
               type="button"
               className={`mt-5 w-full rounded-lg px-4 py-3 text-sm font-semibold transition ${
-                tradeSide === 'Buy'
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-red-600 hover:bg-red-500 text-white'
+                tradeSide === 'Buy' ? 'bg-green-600 text-white hover:bg-green-500' : 'bg-red-600 text-white hover:bg-red-500'
               }`}
             >
               {tradeSide} {selectedPair}
