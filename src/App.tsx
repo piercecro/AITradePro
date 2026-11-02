@@ -15,12 +15,28 @@ import { supabase } from './lib/supabase';
 
 const AppContent = () => {
   const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<string>(() => {
-    const saved = localStorage.getItem('currentPage');
-    return saved || 'dashboard';
-  });
+  const [currentPage, setCurrentPage] = useState<string>('dashboard');
   const [verifying, setVerifying] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const saved = window.localStorage.getItem('currentPage');
+    if (saved) {
+      setCurrentPage(saved);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
 
   useEffect(() => {
     const handleAuthRedirect = async () => {
@@ -44,10 +60,6 @@ const AppContent = () => {
     };
     handleAuthRedirect();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('currentPage', currentPage);
-  }, [currentPage]);
 
   useEffect(() => {
     const checkAdmin = async () => {
