@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 
 type TradeSide = 'Buy' | 'Sell';
 type TradeStatus = 'active' | 'closed';
+type OrderType = 'market' | 'limit' | 'take_profit' | 'stop_loss';
 
 type Instrument = {
   symbol: string;
@@ -27,10 +28,21 @@ type TradeRow = {
   trade_type: string;
   amount: number;
   entry_price: number;
+  exit_price?: number | null;
   profit_loss: number;
   status: string;
   opened_at: string;
   closed_at?: string | null;
+  order_type?: string | null;
+  execution_price?: number | null;
+  stop_loss_price?: number | null;
+  take_profit_price?: number | null;
+};
+
+type UserProfile = {
+  id: string;
+  available_balance: number;
+  total_profit: number;
 };
 
 const marketInstruments: Instrument[] = [
@@ -57,13 +69,14 @@ const marketInstruments: Instrument[] = [
 ];
 
 const tradeTabs = ['Open', 'Closed'];
+const orderOptions: OrderType[] = ['market', 'limit', 'take_profit', 'stop_loss'];
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: value < 100 ? 4 : 2,
-    maximumFractionDigits: value < 100 ? 4 : 2,
+    minimumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
+    maximumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
   }).format(value);
 
 const formatPrice = (value: number, symbol: string) => {
@@ -95,23 +108,161 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   });
 
+const getMarketPriceSnapshot = async (symbol: string): Promise<number> => {
+  const numeric = marketInstruments.find((item) => item.symbol === symbol)?.price ?? 1;
+
+  try {
+    if (['BTC/USD', 'ETH/USD', 'SOL/USD'].includes(symbol)) {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${
+          symbol === 'BTC/USD' ? 'bitcoin' : symbol === 'ETH/USD' ? 'ethereum' : 'solana'
+        }&vs_currencies=usd`,
+      );
+
+      if (response.ok) {
+        const payload = await response.json();
+        const key = symbol === 'BTC/USD' ? 'bitcoin' : symbol === 'ETH/USD' ? 'ethereum' : 'solana';
+        const value = payload?.[key]?.usd;
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return Number(value);
+        }
+      }
+    }
+
+    if (['EUR/USD', 'GBP/USD', 'AUD/USD', 'USD/JPY'].includes(symbol)) {
+      const pairs: Record<string, string> = {
+        'EUR/USD': 'EUR-USD',
+        'GBP/USD': 'GBP-USD',
+        'AUD/USD': 'AUD-USD',
+        'USD/JPY': 'USD-JPY',
+      };
+
+      const response = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${pairs[symbol].split('-')[0]}`);
+      if (response.ok) {
+        const data = await response.json();
+        const rate = data?.rates?.[pairs[symbol].split('-')[0]];
+        const value = pairs[symbol] === 'USD-JPY' ? 1 / Number(rate) : Number(rate);
+        if (Number.isFinite(value)) {
+          return value;
+        }
+      }
+    }
+
+    if (['NASDAQ', 'SPX', 'DAX', 'FTSE', 'VIX'].includes(symbol)) {
+      const symbolMap: Record<string, string> = {
+        NASDAQ: '^IXIC',
+        SPX: '^GSPC',
+        DAX: '^GDAXI',
+        FTSE: '^FTSE',
+        VIX: '^VIX',
+      };
+
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbolMap[symbol]}?interval=1d&range=1d`,
+      );
+
+      if (response.ok) {
+        const payload = await response.json();
+        const value = payload?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return Number(value);
+        }
+      }
+    }
+
+    if (['AAPL', 'MSFT', 'NVDA', 'TSLA'].includes(symbol)) {
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
+      );
+
+      if (response.ok) {
+        const payload = await response.json();
+        const value = payload?.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return Number(value);
+        }
+      }
+    }
+
+    if (['US10Y', 'US30Y'].includes(symbol)) {
+      return numeric;
+    }
+
+    if (['XAU/USD', 'XAG/USD'].includes(symbol)) {
+      const response = await fetch('https://api.gold-api.com/price/XAU');
+      if (response.ok) {
+        const payload = await response.json();
+        const value = payload?.price;
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return Number(value);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`Live price fetch failed for ${symbol}:`, error);
+  }
+
+  return numeric;
+};
+
+const getOrderLabel = (orderType: OrderType) => {
+  switch (orderType) {
+    case 'market':
+      return 'Market';
+    case 'limit':
+      return 'Limit';
+    case 'take_profit':
+      return 'Take Profit';
+    case 'stop_loss':
+      return 'Stop Loss';
+    default:
+      return 'Market';
+  }
+};
+
 export const TradePage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('Open');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSymbol, setSelectedSymbol] = useState('EUR/USD');
   const [selectedSide, setSelectedSide] = useState<TradeSide>('Buy');
+  const [orderType, setOrderType] = useState<OrderType>('market');
   const [tradeAmount, setTradeAmount] = useState<number>(1);
+  const [limitPrice, setLimitPrice] = useState<number>(0);
+  const [entryPriceInput, setEntryPriceInput] = useState<number>(0);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>(() =>
-    Object.fromEntries(marketInstruments.map((instrument) => [instrument.symbol, instrument.price]))
+    Object.fromEntries(marketInstruments.map((instrument) => [instrument.symbol, instrument.price])),
   );
+  const [availableBalance, setAvailableBalance] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClosingTradeId, setIsClosingTradeId] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const currentInstrument =
     marketInstruments.find((instrument) => instrument.symbol === selectedSymbol) ?? marketInstruments[0];
   const currentPrice = marketPrices[currentInstrument.symbol] ?? currentInstrument.price;
+
+  const loadProfileBalance = async () => {
+    if (!user) {
+      setAvailableBalance(0);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('available_balance, total_profit')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user balance:', error.message);
+      setAvailableBalance(0);
+      return;
+    }
+
+    setAvailableBalance(Number(data?.available_balance ?? 0));
+  };
 
   const loadTrades = async () => {
     if (!user) {
@@ -135,24 +286,32 @@ export const TradePage = () => {
   };
 
   useEffect(() => {
+    void loadProfileBalance();
     void loadTrades();
   }, [user]);
 
   useEffect(() => {
+    const refreshTicker = async () => {
+      const next: Record<string, number> = {};
+
+      for (const instrument of marketInstruments) {
+        try {
+          const livePrice = await getMarketPriceSnapshot(instrument.symbol);
+          next[instrument.symbol] = Number(livePrice.toFixed(4));
+        } catch (error) {
+          console.warn('Market refresh failed for', instrument.symbol, error);
+          next[instrument.symbol] = instrument.price;
+        }
+      }
+
+      setMarketPrices(next);
+    };
+
+    void refreshTicker();
+
     const interval = window.setInterval(() => {
-      setMarketPrices((previous) => {
-        const next: Record<string, number> = {};
-
-        marketInstruments.forEach((instrument) => {
-          const previousPrice = previous[instrument.symbol] ?? instrument.price;
-          const drift = (Math.random() - 0.5) * (instrument.category === 'Index' ? 0.015 : 0.02);
-          const updated = Math.max(previousPrice * (1 + drift), 0.0001);
-          next[instrument.symbol] = Number(updated.toFixed(4));
-        });
-
-        return next;
-      });
-    }, 12000);
+      void refreshTicker();
+    }, 15000);
 
     return () => window.clearInterval(interval);
   }, []);
@@ -193,40 +352,97 @@ export const TradePage = () => {
 
   const openTradeCount = trades.filter((trade) => trade.status === 'active').length;
 
+  const getExecutionPrice = () => {
+    if (orderType === 'market') {
+      return currentPrice;
+    }
+
+    if (orderType === 'limit') {
+      return Number(limitPrice > 0 ? limitPrice : currentPrice);
+    }
+
+    if (orderType === 'take_profit') {
+      return Number(entryPriceInput > 0 ? entryPriceInput : currentPrice);
+    }
+
+    if (orderType === 'stop_loss') {
+      return Number(entryPriceInput > 0 ? entryPriceInput : currentPrice);
+    }
+
+    return currentPrice;
+  };
+
   const handlePlaceTrade = async () => {
     if (!user) {
+      setErrorText('Please sign in to place a trade.');
       return;
     }
 
     if (!tradeAmount || tradeAmount <= 0) {
+      setErrorText('Trade amount must be greater than zero.');
       return;
     }
 
+    const executionPrice = getExecutionPrice();
+    const notional = executionPrice * tradeAmount;
+
+    if (availableBalance < notional) {
+      setErrorText(`Not enough balance. You have ${formatCurrency(availableBalance)} available.`);
+      return;
+    }
+
+    setErrorText(null);
     setIsSubmitting(true);
 
     try {
+      const nextBalance = availableBalance - notional;
+
+      const { error: profileUpdateError } = await supabase
+        .from('user_profiles')
+        .update({ available_balance: nextBalance })
+        .eq('id', user.id);
+
+      if (profileUpdateError) {
+        throw profileUpdateError;
+      }
+
       const { error } = await supabase.from('trades').insert({
         user_id: user.id,
         trading_pair: currentInstrument.symbol,
         trade_type: selectedSide.toLowerCase(),
         amount: tradeAmount,
-        entry_price: currentPrice,
+        entry_price: executionPrice,
         exit_price: null,
         profit_loss: 0,
         status: 'active',
         opened_at: new Date().toISOString(),
+        order_type: orderType,
+        execution_price: executionPrice,
+        stop_loss_price: orderType === 'stop_loss' ? Number(entryPriceInput || executionPrice) : null,
+        take_profit_price: orderType === 'take_profit' ? Number(entryPriceInput || executionPrice) : null,
       });
 
       if (error) {
         console.error('Error inserting trade:', error.message);
+        await supabase
+          .from('user_profiles')
+          .update({ available_balance: availableBalance })
+          .eq('id', user.id);
+        setErrorText('Trade could not be created.');
         return;
       }
 
+      setAvailableBalance(nextBalance);
       setSelectedSide('Buy');
+      setOrderType('market');
       setTradeAmount(1);
+      setLimitPrice(0);
+      setEntryPriceInput(0);
       await loadTrades();
+      await loadProfileBalance();
     } catch (err) {
       console.error('Unexpected trade insert error:', err);
+      setErrorText('Unexpected error placing trade.');
     } finally {
       setIsSubmitting(false);
     }
@@ -237,26 +453,68 @@ export const TradePage = () => {
       return;
     }
 
+    const trade = trades.find((item) => item.id === tradeId);
+    if (!trade) {
+      return;
+    }
+
     setIsClosingTradeId(tradeId);
 
     try {
-      const { error } = await supabase
+      const closePrice = marketPrices[trade.trading_pair] ?? Number(trade.entry_price ?? 0);
+      const pnl =
+        trade.trade_type === 'buy'
+          ? (closePrice - Number(trade.entry_price)) * Number(trade.amount)
+          : (Number(trade.entry_price) - closePrice) * Number(trade.amount);
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('available_balance, total_profit')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const existingBalance = Number(profileData?.available_balance ?? 0);
+      const existingProfit = Number(profileData?.total_profit ?? 0);
+      const updatedBalance = existingBalance + pnl;
+      const updatedProfit = existingProfit + pnl;
+
+      const { error: updateTradeError } = await supabase
         .from('trades')
         .update({
           status: 'closed',
+          exit_price: closePrice,
+          profit_loss: pnl,
           closed_at: new Date().toISOString(),
         })
         .eq('id', tradeId)
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error closing trade:', error.message);
-        return;
+      if (updateTradeError) {
+        throw updateTradeError;
       }
 
+      const { error: balanceError } = await supabase
+        .from('user_profiles')
+        .update({
+          available_balance: updatedBalance,
+          total_profit: updatedProfit,
+        })
+        .eq('id', user.id);
+
+      if (balanceError) {
+        throw balanceError;
+      }
+
+      setAvailableBalance(updatedBalance);
       await loadTrades();
+      await loadProfileBalance();
     } catch (err) {
       console.error('Unexpected close trade error:', err);
+      setErrorText('Could not close trade.');
     } finally {
       setIsClosingTradeId(null);
     }
@@ -282,6 +540,10 @@ export const TradePage = () => {
                   {tab}
                 </button>
               ))}
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+              Balance: {formatCurrency(availableBalance)}
             </div>
           </div>
 
@@ -353,11 +615,44 @@ export const TradePage = () => {
                 </button>
               </div>
 
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                {orderOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setOrderType(option)}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
+                      orderType === option
+                        ? 'bg-[#1d73f5] text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {getOrderLabel(option)}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                  <span className="text-sm text-slate-500">Price</span>
+                  <span className="text-sm text-slate-500">Live price</span>
                   <span className="text-sm font-bold text-slate-800">{formatPrice(currentPrice, currentInstrument.symbol)}</span>
                 </div>
+
+                {(orderType === 'limit' || orderType === 'take_profit' || orderType === 'stop_loss') && (
+                  <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
+                    <span className="text-sm text-slate-500">
+                      {orderType === 'limit' ? 'Limit price' : orderType === 'take_profit' ? 'Take profit' : 'Stop loss'}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.0001}
+                      value={entryPriceInput || currentPrice}
+                      onChange={(event) => setEntryPriceInput(Number(event.target.value) || 0)}
+                      className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none"
+                    />
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
                   <span className="text-sm text-slate-500">Quantity</span>
@@ -373,9 +668,15 @@ export const TradePage = () => {
 
                 <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
                   <span className="text-sm text-slate-500">Notional</span>
-                  <span className="text-sm font-bold text-slate-800">{formatCurrency(currentPrice * tradeAmount)}</span>
+                  <span className="text-sm font-bold text-slate-800">{formatCurrency(getExecutionPrice() * tradeAmount)}</span>
                 </div>
               </div>
+
+              {errorText && (
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+                  {errorText}
+                </div>
+              )}
 
               <button
                 type="button"
@@ -385,7 +686,7 @@ export const TradePage = () => {
                   selectedSide === 'Buy' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
                 } ${isSubmitting ? 'cursor-not-allowed opacity-70' : ''}`}
               >
-                {isSubmitting ? 'Placing order...' : `${selectedSide} ${currentInstrument.symbol}`}
+                {isSubmitting ? 'Placing order...' : `${selectedSide} ${currentInstrument.symbol} • ${getOrderLabel(orderType)}`}
               </button>
             </section>
           </div>
@@ -460,6 +761,7 @@ export const TradePage = () => {
                       <th className="px-4 py-3">Type</th>
                       <th className="px-4 py-3">Qty</th>
                       <th className="px-4 py-3">Entry</th>
+                      <th className="px-4 py-3">Order</th>
                       <th className="px-4 py-3">Opened</th>
                       <th className="px-4 py-3">PnL</th>
                       <th className="px-4 py-3">Status</th>
@@ -469,7 +771,7 @@ export const TradePage = () => {
                   <tbody>
                     {visibleTrades.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-16">
+                        <td colSpan={9} className="px-4 py-16">
                           <div className="flex flex-col items-center justify-center gap-4 text-center">
                             <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300">
                               <Wallet size={24} />
@@ -497,6 +799,9 @@ export const TradePage = () => {
                             </td>
                             <td className="px-4 py-3">{trade.amount}</td>
                             <td className="px-4 py-3">{formatPrice(Number(trade.entry_price), trade.trading_pair)}</td>
+                            <td className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                              {String(trade.order_type ?? 'market')}
+                            </td>
                             <td className="px-4 py-3">{formatDate(trade.opened_at)}</td>
                             <td className="px-4 py-3 text-slate-600">{formatCurrency(Number(trade.profit_loss))}</td>
                             <td className="px-4 py-3">
