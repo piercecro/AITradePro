@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronDown, Bell, Plus, CreditCard, ArrowUp, Wallet } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface HeaderProps {
@@ -13,9 +13,27 @@ const tabs = [
   { key: 'demo', label: 'Demo' },
 ];
 
+const connectBotStorageKey = 'header-bot-connect-status';
+
 export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isBotConnected, setIsBotConnected] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    try {
+      const raw = localStorage.getItem(connectBotStorageKey);
+      return raw === 'true';
+    } catch {
+      return false;
+    }
+  });
   const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    localStorage.setItem(connectBotStorageKey, String(isBotConnected));
+  }, [isBotConnected]);
 
   const handleMenuClick = (page: string) => {
     setShowUserMenu(false);
@@ -78,9 +96,17 @@ export const Header = ({ currentPage, onNavigate }: HeaderProps) => {
           Upgrade
         </button>
 
-        <button className="flex items-center gap-2 rounded-xl bg-[#1d73f5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#1667d8]">
+        <button
+          type="button"
+          onClick={() => setIsBotConnected(true)}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition ${
+            isBotConnected
+              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+              : 'bg-[#1d73f5] text-white hover:bg-[#1667d8]'
+          }`}
+        >
           <Plus size={15} />
-          Create Bot
+          {isBotConnected ? 'Connected' : 'Connect Bot'}
         </button>
 
         <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dfe7f0] bg-[#f8fafc] text-slate-700 hover:bg-slate-100">
