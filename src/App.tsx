@@ -39,6 +39,10 @@ const AppContent = () => {
   }, [currentPage]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const handleAuthRedirect = async () => {
       if (window.location.pathname === '/auth/callback') {
         setVerifying(true);
@@ -49,7 +53,7 @@ const AppContent = () => {
           } else {
             window.history.replaceState({}, '', '/');
             window.location.href = '/';
-            localStorage.setItem('currentPage', 'dashboard');
+            window.localStorage.setItem('currentPage', 'dashboard');
           }
         } catch (err) {
           console.error('Unexpected auth redirect error:', err);
@@ -58,7 +62,8 @@ const AppContent = () => {
         }
       }
     };
-    handleAuthRedirect();
+
+    void handleAuthRedirect();
   }, []);
 
   useEffect(() => {
@@ -88,7 +93,7 @@ const AppContent = () => {
       }
     };
 
-    checkAdmin();
+    void checkAdmin();
   }, [user]);
 
   if (loading || verifying) {
@@ -137,10 +142,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
-      <Header
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-      />
+      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
     </div>
   );
