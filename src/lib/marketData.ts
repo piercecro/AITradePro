@@ -5,8 +5,8 @@ export interface BotPriceSnapshot {
 
 export type BotMarketMap = Record<string, BotPriceSnapshot>;
 
-const toPairAssetId = (pair: string) => {
-  const normalized = pair.toUpperCase();
+export const pairToCoinGeckoId = (pair: string) => {
+  const normalized = pair.trim().toUpperCase().replace('USDT', 'USD');
   const map: Record<string, string> = {
     'BTC/USD': 'bitcoin',
     'ETH/USD': 'ethereum',
@@ -43,6 +43,8 @@ const toPairAssetId = (pair: string) => {
 
   return map[normalized] ?? normalized.replace('/', '').toLowerCase();
 };
+
+const toPairAssetId = (pair: string) => pairToCoinGeckoId(pair);
 
 export const fetchBotMarketSnapshot = async (pairs: string[]): Promise<BotMarketMap> => {
   const ids = Array.from(new Set(pairs.map(toPairAssetId))).filter(Boolean);
