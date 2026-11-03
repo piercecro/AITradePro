@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchLivePrices } from '../lib/livePrices';
 
 interface UserProfile {
   id: string;
@@ -143,6 +144,46 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
   };
 
   useEffect(() => {
+    let active = true;
+
+    const refreshMarketEntries = async () => {
+      const live = await fetchLivePrices();
+
+      if (!active) return;
+
+      setMarketEntries((prev) =>
+        prev.map((entry) => {
+          const quote = live[entry.pair];
+          if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+            return entry;
+          }
+
+          const nextChange = Number(quote.change24h ?? entry.price_change_percentage_24h);
+
+          return {
+            ...entry,
+            current_price: Number(quote.price),
+            price_change_percentage_24h: Number.isFinite(nextChange)
+              ? nextChange
+              : entry.price_change_percentage_24h,
+          };
+        }),
+      );
+    };
+
+    void refreshMarketEntries();
+
+    const refreshId = window.setInterval(() => {
+      void refreshMarketEntries();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(refreshId);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setProfile(null);
       setRecentTrades([]);
@@ -165,7 +206,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
-        () => void loadDashboardData()
+        () => void loadDashboardData(),
       )
       .subscribe();
 
@@ -331,7 +372,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                 {profileLoading && <div className="mt-1 text-xs text-slate-500">Refreshing account balance…</div>}
                 {profileError && (
                   <div className="mt-2 max-w-xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    Could not load your Supabase balance: {profileError}. Check that your user_profiles row has id = your Auth user ID and that the available_balance column exists and is readable by the authenticated user.
+                    Could not load your Supabase balance: {profileError}. Check that your user_profiles row has id = your Auth user ID and that the available_balance column exists and is readable.
                   </div>
                 )}
               </div>
@@ -712,97 +753,3 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 };
 
 export default DashboardPage;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
