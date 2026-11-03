@@ -68,21 +68,26 @@ export const MarketplacePage = () => {
   }, [search]);
 
   return (
-    <div className="min-h-screen bg-[#edf3f8] px-5 py-6 lg:px-6">
+    <div className="min-h-screen bg-[#edf3f8] px-6 py-6">
       <div className="mx-auto max-w-[1600px]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#dfeaf4] bg-white px-4 py-4 shadow-sm">
-          <div>
-            <div className="flex items-center gap-2"><h1 className="text-2xl font-black tracking-tight text-slate-800">Bot Marketplace</h1><Sparkles size={18} className="text-[#1d73f5]" /></div>
-            <p className="mt-1 text-sm text-slate-500">Browse 50 sample strategy listings with live market prices.</p>
+        <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-[#dfeaf4] bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-lg border border-[#dfeaf4] bg-[#f8fbff] px-3 py-2 text-sm font-medium text-slate-700">
+              Bot Marketplace
+              <Sparkles size={15} className="text-[#1d73f5]" />
+            </div>
+            <span className="hidden text-sm text-slate-500 sm:inline">Browse 50 strategy listings with live market prices</span>
           </div>
           <label className="flex w-full items-center gap-2 rounded-xl border border-[#dfeaf4] bg-[#f8fbff] px-3 py-2 sm:w-64">
             <Search size={14} className="text-slate-500" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" placeholder="Search bots or pairs…" aria-label="Search marketplace bots" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              placeholder="Search..."
+              aria-label="Search marketplace bots"
+            />
           </label>
-        </div>
-
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-          These are sample marketplace listings, not verified live trading bots. This repository does not currently have a public bot-performance API. Live price and 24-hour market data are shown where available; sample performance figures are not represented as actual returns.
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 2xl:grid-cols-3">
@@ -90,18 +95,31 @@ export const MarketplacePage = () => {
             const quote = marketData[pairToCoinGeckoId(bot.pair)];
             const change = quote?.change24h;
             return (
-              <article key={bot.id} className="rounded-2xl border border-[#dfeaf4] bg-white p-4 shadow-sm">
+              <div key={bot.id} className="rounded-2xl border border-[#dfeaf4] bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: bot.color }}>{bot.symbol}</div>
-                    <div className="min-w-0"><h2 className="truncate text-[15px] font-bold text-slate-800">{bot.name}</h2><div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-500"><span>{bot.pair}</span><span>•</span><span>{bot.strategy}</span></div></div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ background: bot.color }}>
+                      {bot.symbol}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-[15px] font-bold text-slate-800">{bot.name}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                        <span>{bot.pair}</span>
+                        <span>•</span>
+                        <span>{bot.strategy}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="shrink-0 rounded-lg border border-[#dfeaf4] bg-[#f7f9fc] px-2.5 py-1.5 text-[11px] font-medium text-slate-500">Sample</span>
+                  <span className="shrink-0 rounded-lg border border-[#dfeaf4] bg-[#f7f9fc] px-2.5 py-1.5 text-[11px] font-medium text-slate-600">
+                    Sample
+                  </span>
                 </div>
 
                 <div className="mb-4 flex items-center gap-2">
-                  <span className={`text-base font-black ${bot.sampleChange >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{bot.sampleChange >= 0 ? '+' : ''}{bot.sampleChange.toFixed(1)}%</span>
-                  <span className="text-xs font-medium uppercase tracking-wider text-slate-400">Illustrative strategy metric</span>
+                  <span className={`text-base font-black ${bot.sampleChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {bot.sampleChange >= 0 ? '+' : ''}{bot.sampleChange.toFixed(1)}%
+                  </span>
+                  <span className="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">Illustrative strategy metric</span>
                 </div>
 
                 <div className="mb-4 overflow-hidden rounded-xl border border-[#edf2f7] bg-[#f8fbff] p-2">
@@ -110,19 +128,40 @@ export const MarketplacePage = () => {
                   </svg>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-center">
-                  <div className="rounded-xl bg-[#f4f8fc] px-2 py-2"><div className="text-[11px] text-slate-500">Live price</div><div className="mt-1 text-sm font-bold text-slate-800">{quote ? `$${quote.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : '—'}</div></div>
-                  <div className="rounded-xl bg-[#f4f8fc] px-2 py-2"><div className="text-[11px] text-slate-500">24h market move</div><div className={`mt-1 text-sm font-bold ${change === undefined ? 'text-slate-500' : change >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>{change === undefined ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`}</div></div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-[#f4f8fc] px-2 py-2">
+                    <div className="text-[11px] text-slate-500">Strategy</div>
+                    <div className="mt-1 truncate text-sm font-bold text-slate-800">{bot.strategy.replace(' strategy', '')}</div>
+                  </div>
+                  <div className="rounded-xl bg-[#f4f8fc] px-2 py-2">
+                    <div className="text-[11px] text-slate-500">Live Price</div>
+                    <div className="mt-1 text-sm font-bold text-slate-800">
+                      {quote ? `$${quote.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-[#f4f8fc] px-2 py-2">
+                    <div className="text-[11px] text-slate-500">24h</div>
+                    <div className={`mt-1 text-sm font-bold ${change === undefined ? 'text-slate-800' : change >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {change === undefined ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`}
+                    </div>
+                  </div>
                 </div>
+
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[#edf2f7] bg-[#f8fbff] px-3 py-2.5">
                   <span className="text-xs text-slate-500">Strategy template</span>
-                  <button type="button" disabled title="A live bot provider is not connected" className="cursor-not-allowed rounded-xl bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500">Coming soon</button>
+                  <button type="button" disabled title="A live bot provider is not connected" className="cursor-not-allowed rounded-xl bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500">
+                    Copy Bot
+                  </button>
                 </div>
-              </article>
+              </div>
             );
           })}
         </div>
-        {displayedBots.length === 0 && <div className="rounded-2xl border border-dashed border-[#d9e3ee] bg-white p-10 text-center text-sm text-slate-500">No sample bots match your search.</div>}
+        {displayedBots.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-[#d9e3ee] bg-white p-10 text-center text-sm text-slate-500">
+            No sample bots match your search.
+          </div>
+        )}
       </div>
     </div>
   );
