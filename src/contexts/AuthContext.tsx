@@ -31,18 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
+        // Insert profile metadata only. Never write default zero balances during
+        // login: doing so can overwrite an existing funded account.
         const { error: insertErr } = await supabase.from('user_profiles').upsert(
           {
             id: u.id,
             username: metaUsername,
             email,
-            available_balance: 0,
-            total_deposited: 0,
-            total_withdrawn: 0,
-            total_profit: 0,
             role: 'user',
           },
-          { onConflict: 'id' }
+          { onConflict: 'id', ignoreDuplicates: true }
         );
 
         if (!insertErr) {
