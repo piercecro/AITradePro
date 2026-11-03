@@ -270,15 +270,18 @@ export const TradePage = () => {
 
   const chartWidth = 720;
   const chartHeight = 210;
-  const prices = priceHistory.map((point) => point.price);
-  const minPrice = Math.min(...prices, currentPrice) * 0.9995;
-  const maxPrice = Math.max(...prices, currentPrice) * 1.0005;
+  const candleData = priceHistory.map((point, index, points) => {
+    const previous = points[Math.max(index - 1, 0)] ?? point;
+    const open = previous.price;
+    const close = point.price;
+    const high = Math.max(open, close) * (1 + 0.003);
+    const low = Math.min(open, close) * (1 - 0.003);
+    return { open, high, low, close };
+  });
+  const chartValues = candleData.flatMap((candle) => [candle.open, candle.high, candle.low, candle.close]);
+  const minPrice = Math.min(...chartValues, currentPrice) * 0.998;
+  const maxPrice = Math.max(...chartValues, currentPrice) * 1.002;
   const priceRange = Math.max(maxPrice - minPrice, currentPrice * 0.0001, 0.0001);
-  const pointCoordinates = priceHistory.map((point, index) => {
-    const x = priceHistory.length <= 1 ? chartWidth : (index / (priceHistory.length - 1)) * chartWidth;
-    const y = chartHeight - ((point.price - minPrice) / priceRange) * chartHeight;
-    return `${x},${y}`;
-  }).join(' ');
   const selectedOpenTrades = openTrades.filter((trade) => trade.trading_pair === selectedSymbol);
   const priceToY = (price: number) => chartHeight - ((price - minPrice) / priceRange) * chartHeight;
 
@@ -312,13 +315,29 @@ export const TradePage = () => {
               <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length} open position{selectedOpenTrades.length === 1 ? '' : 's'} on this symbol</div></div>
             </div>
             <div className="overflow-hidden rounded-xl bg-slate-950 p-3">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} price chart with open trade entry levels`}>
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} candlestick chart with open trade entry levels`}>
                 {[0.25, 0.5, 0.75].map((fraction) => <line key={fraction} x1="0" x2={chartWidth} y1={chartHeight * fraction} y2={chartHeight * fraction} stroke="#263244" strokeDasharray="4 5" />)}
                 {selectedOpenTrades.map((trade) => {
                   const y = priceToY(trade.entry_price);
                   return <g key={trade.id}><line x1="0" x2={chartWidth} y1={y} y2={y} stroke={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} strokeDasharray="7 5" /><text x="8" y={Math.max(y - 5, 12)} fill={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} fontSize="11">{trade.trade_type.toUpperCase()} entry {formatPrice(trade.entry_price, selectedSymbol)}</text></g>;
                 })}
-                {pointCoordinates && <polyline points={pointCoordinates} fill="none" stroke="#60a5fa" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
+                {candleData.map((candle, index) => {
+                  const x = priceHistory.length <= 1 ? chartWidth / 2 : (index / Math.max(candleData.length - 1, 1)) * chartWidth;
+                  const yOpen = chartHeight - ((candle.open - minPrice) / priceRange) * chartHeight;
+                  const yClose = chartHeight - ((candle.close - minPrice) / priceRange) * chartHeight;
+                  const yHigh = chartHeight - ((candle.high - minPrice) / priceRange) * chartHeight;
+                  const yLow = chartHeight - ((candle.low - minPrice) / priceRange) * chartHeight;
+                  const isUp = candle.close >= candle.open;
+                  const color = isUp ? '#22c55e' : '#ef4444';
+                  const candleWidth = 10;
+
+                  return (
+                    <g key={`${candle.open}-${candle.close}-${index}`}>
+                      <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+                      <rect x={x - candleWidth / 2} y={Math.min(yOpen, yClose)} width={candleWidth} height={Math.max(Math.abs(yClose - yOpen), 4)} rx={2} fill={color} opacity={0.9} />
+                    </g>
+                  );
+                })}
               </svg>
               <div className="flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live simulated chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Waiting for price'}</span></div>
             </div>
@@ -336,7 +355,7 @@ export const TradePage = () => {
             <div className="mb-4 grid grid-cols-2 gap-2">{orderOptions.map((option) => <button key={option} type="button" onClick={() => { setOrderType(option); if (option !== 'market' && triggerPrice <= 0) setTriggerPrice(currentPrice); if (option === 'market') setTriggerPrice(0); }} className={`rounded-lg px-3 py-2 text-xs font-bold uppercase ${orderType === option ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{orderLabel(option)}</button>)}</div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Live price</span><strong>{formatPrice(currentPrice, selectedSymbol)}</strong></div>
-              {(orderType !== 'market') && <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">{orderLabel(orderType)} price</span><input aria-label="Order trigger price" type="number" min="0" step="0.0001" value={triggerPrice || currentPrice} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-32 bg-transparent text-right font-semibold outline-none" /></label>}
+              {(orderType !== 'market') && <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">{orderLabel(orderType)} price</span><input aria-label={`${orderLabel(orderType)} price`} type="number" min="0" step="0.0001" value={triggerPrice || currentPrice} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-24 bg-transparent text-right font-semibold outline-none" /></label>}
               <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Quantity</span><input aria-label="Trade quantity" type="number" min="0.01" step="0.01" value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-24 bg-transparent text-right font-semibold outline-none" /></label>
               <div className="flex justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Reserved notional</span><strong>{formatCurrency(getExecutionPrice() * tradeAmount)}</strong></div>
             </div>
@@ -353,7 +372,7 @@ export const TradePage = () => {
           <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5">{filteredInstruments.map((instrument) => {
             const price = marketPrices[instrument.symbol] ?? instrument.price;
             const up = price >= instrument.price;
-            return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}><span><strong className="block text-sm text-slate-800">{instrument.symbol}</strong><small className="text-slate-500">{instrument.category}</small></span><span className="text-right"><strong className="block text-xs">{formatPrice(price, instrument.symbol)}</strong><small className={up ? 'text-emerald-600' : 'text-rose-600'}>{up ? <TrendingUp className="inline" size={12} /> : <TrendingDown className="inline" size={12} />} {up ? 'Up' : 'Down'}</small></span></button>;
+            return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'} ${up ? 'text-emerald-700' : 'text-rose-700'}`}><div><div className="font-semibold">{instrument.symbol}</div><div className="text-xs text-slate-500">{instrument.label}</div></div><div className="text-right"><div className="font-bold text-slate-800">{formatPrice(price, instrument.symbol)}</div><div className="text-[10px] uppercase tracking-wide text-slate-500">{up ? 'Up' : 'Down'}</div></div></button>;
           })}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'P&L', 'Status', 'Action'].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead>
