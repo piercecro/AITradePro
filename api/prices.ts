@@ -12,7 +12,7 @@ interface LivePrice {
   updatedAt: string;
 }
 
-const COINS: Record<string, string> = {
+const LIVE_COIN_IDS: Record<string, string> = {
   'BTC/USD': 'bitcoin',
   'ETH/USD': 'ethereum',
   'SOL/USD': 'solana',
@@ -62,7 +62,7 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    const ids = [...new Set(Object.values(COINS))].join(',');
+    const ids = [...new Set(Object.values(LIVE_COIN_IDS))].join(',');
     const response = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
       {
@@ -72,7 +72,8 @@ export default async function handler(request: Request): Promise<Response> {
     );
 
     if (!response.ok) {
-      console.error('CoinGecko price request failed:', response.status, await response.text());
+      const text = await response.text();
+      console.error('CoinGecko price request failed:', response.status, text);
       return jsonResponse({ error: `CoinGecko request failed (${response.status})` }, 502);
     }
 
@@ -80,7 +81,7 @@ export default async function handler(request: Request): Promise<Response> {
     const updatedAt = new Date().toISOString();
     const prices: Record<string, LivePrice> = {};
 
-    for (const [symbol, id] of Object.entries(COINS)) {
+    for (const [symbol, id] of Object.entries(LIVE_COIN_IDS)) {
       const quote = data[id];
       const price = Number(quote?.usd);
       if (!Number.isFinite(price) || price <= 0) continue;
