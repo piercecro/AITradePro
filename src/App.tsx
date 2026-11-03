@@ -5,12 +5,13 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardPage } from './pages/DashboardPage';
 import { BalancePage } from './pages/BalancePage';
-import { TradePage } from './pages/TradePage';
+import { TradePage } from './components/TradePage';
 import { MyBotsPage } from './pages/MyBotsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
 import { AdminDepositPanel } from './pages/AdminDepositPanel';
+import Testimonials from './components/Testimonials/Testimonials';
 import { supabase } from './lib/supabase';
 
 const AppContent = () => {
@@ -88,7 +89,17 @@ const AppContent = () => {
   }
 
   if (!user) {
-    return <AuthPage />;
+    return (
+      <>
+        <AuthPage />
+        <section className="bg-slate-950 px-4 py-12 sm:px-8">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="mb-8 text-center text-2xl font-bold text-white">What our users say</h2>
+            <Testimonials />
+          </div>
+        </section>
+      </>
+    );
   }
 
   const renderPage = () => {
@@ -125,10 +136,7 @@ const AppContent = () => {
   return (
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
-      <Header
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-      />
+      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
     </div>
   );
