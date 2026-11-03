@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, SlidersHorizontal, X } from 'lucide-react';
 import { fetchBotMarketSnapshot, pairToCoinGeckoId, type BotMarketMap } from '../lib/marketData';
 import {
   readBotConnectionState,
@@ -84,6 +84,8 @@ const makePath = (seed: number) => {
 export const MyBotsPage = () => {
   const [marketData, setMarketData] = useState<BotMarketMap>({});
   const [isGlobalConnected, setIsGlobalConnected] = useState<boolean>(() => readBotConnectionState());
+  const [hideInsufficientBalance, setHideInsufficientBalance] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [connected, setConnected] = useState<Record<string, boolean>>(() => {
     if (typeof window === 'undefined') {
       return {};
@@ -158,6 +160,17 @@ export const MyBotsPage = () => {
     };
   };
 
+  const displayedBots = useMemo(() => {
+    return botSeeds.filter((bot) => {
+      if (!hideInsufficientBalance) {
+        return true;
+      }
+
+      const snapshot = marketData[pairToCoinGeckoId(bot.pair)];
+      return (snapshot?.price ?? 1) > 0;
+    });
+  }, [hideInsufficientBalance, marketData]);
+
   return (
     <div className="min-h-screen bg-[#edf3f8] px-6 py-6">
       <div className="mx-auto max-w-[1600px]">
@@ -179,7 +192,11 @@ export const MyBotsPage = () => {
                 placeholder="Search..."
               />
             </div>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-[#1d73f5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#1667d8]">
+            <button
+              type="button"
+              onClick={() => setShowPremiumModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1d73f5] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#1667d8]"
+            >
               <Plus size={15} />
               Create Bot
             </button>
@@ -188,7 +205,7 @@ export const MyBotsPage = () => {
 
         <div className="grid grid-cols-[1fr_300px] gap-5">
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 2xl:grid-cols-3">
-            {botSeeds.map((bot, index) => {
+            {displayedBots.map((bot, index) => {
               const botStats = getLiveBotStats(bot);
               const isConnected = isGlobalConnected || !!connected[bot.id];
               const lineSeed = makePath(index + 1);
@@ -299,8 +316,19 @@ export const MyBotsPage = () => {
                 <div className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Bot Amount</div>
                 <div className="flex items-center justify-between rounded-xl border border-[#dfeaf4] bg-[#f9fbff] px-3 py-2">
                   <span className="text-sm text-slate-600">Hide insufficient funds</span>
-                  <button className="relative h-6 w-11 rounded-full bg-[#1d73f5] p-1">
-                    <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-white" />
+                  <button
+                    type="button"
+                    aria-label="Toggle insufficient fund filters"
+                    onClick={() => setHideInsufficientBalance((current) => !current)}
+                    className={`relative h-6 w-11 rounded-full p-1 transition ${
+                      hideInsufficientBalance ? 'bg-[#1d73f5]' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
+                        hideInsufficientBalance ? 'right-1' : 'left-1'
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
@@ -343,11 +371,51 @@ export const MyBotsPage = () => {
                   <span>Connected bots</span>
                   <span className="font-semibold text-slate-800">{connectedCount}</span>
                 </div>
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  {connectedCount > 0
+                    ? 'Your connected bot strategies are active and ready to trade.'
+                    : 'Connect a bot to start automated trading.'}
+                </p>
               </div>
             </div>
           </aside>
         </div>
       </div>
+
+      {showPremiumModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#dfeaf4] bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">Premium</div>
+                <h3 className="mt-1 text-2xl font-bold text-slate-900">Premium subscribers only</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPremiumModal(false)}
+                className="rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200"
+                aria-label="Close premium modal"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5 text-sm leading-6 text-slate-600">
+              Create custom bots is available to premium subscribers only. Upgrade your plan to unlock this feature.
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPremiumModal(false)}
+                className="rounded-xl bg-[#1d73f5] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1667d8]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
