@@ -30,6 +30,7 @@ interface SidebarItem {
 const topItems: SidebarItem[] = [
   { label: 'Dashboard', value: 'dashboard', icon: Home },
   { label: 'Trades', value: 'trade', icon: Wallet },
+  { label: 'Affiliation', value: 'referral', icon: Users },
 ];
 
 const portfolioItems: SidebarItem[] = [
@@ -114,9 +115,7 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
     <>
       <aside className="fixed left-0 top-0 h-full w-[250px] border-r border-[#dfe7f0] bg-[#f7f9fc] px-4 py-5">
         <div className="mb-7 flex items-center gap-3 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f172a] text-[10px] font-bold text-white">
-            A
-          </div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f172a] text-[10px] font-bold text-white">A</div>
           <div className="text-[28px] font-black tracking-[-0.08em] text-slate-900">AITradePro</div>
         </div>
 
@@ -125,11 +124,7 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
             <button
               key={value}
               onClick={() => handleItemClick(value)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                currentPage === value
-                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-                  : 'text-slate-600 hover:bg-white hover:text-slate-800'
-              }`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${currentPage === value ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]' : 'text-slate-600 hover:bg-white hover:text-slate-800'}`}
             >
               {Icon && <Icon size={16} />}
               <span>{label}</span>
@@ -137,48 +132,22 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
           ))}
 
           <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setOpenPortfolio((prev) => !prev)}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-white hover:text-slate-900"
-            >
-              <div className="flex items-center gap-3">
-                <LayoutGrid size={16} />
-                <span className="font-medium">Portfolio</span>
-              </div>
+            <button type="button" onClick={() => setOpenPortfolio((prev) => !prev)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-white hover:text-slate-900">
+              <div className="flex items-center gap-3"><LayoutGrid size={16} /><span className="font-medium">Portfolio</span></div>
               {openPortfolio ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
             </button>
-
             {openPortfolio && (
               <div className="ml-5 mt-1 space-y-1 border-l border-[#e2eaf2] pl-3">
                 {portfolioItems.map(({ label, value, icon: Icon }) => (
                   <div key={value} className="space-y-1">
-                    <button
-                      onClick={() => handleItemClick(value)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
-                        currentPage === value
-                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-                          : 'text-slate-600 hover:bg-white hover:text-slate-800'
-                      }`}
-                    >
-                      {Icon && <Icon size={15} />}
-                      <span>{label}</span>
+                    <button onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]' : 'text-slate-600 hover:bg-white hover:text-slate-800'}`}>
+                      {Icon && <Icon size={15} />}<span>{label}</span>
                     </button>
-
                     {label === 'Portfolio' && (
                       <div className="ml-5 space-y-1 border-l border-[#edf2f7] pl-3">
                         {portfolioSubItems.map(({ label: subLabel, value: subValue, icon: SubIcon }) => (
-                          <button
-                            key={subValue}
-                            onClick={() => handleItemClick(subValue)}
-                            className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
-                              currentPage === subValue
-                                ? 'bg-[#edf5ff] text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0] font-semibold'
-                                : 'text-slate-500 hover:bg-white hover:text-slate-700'
-                            }`}
-                          >
-                            {SubIcon && <SubIcon size={14} />}
-                            <span>{subLabel}</span>
+                          <button key={subValue} onClick={() => handleItemClick(subValue)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${currentPage === subValue ? 'bg-[#edf5ff] text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0] font-semibold' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}>
+                            {SubIcon && <SubIcon size={14} />}<span>{subLabel}</span>
                           </button>
                         ))}
                       </div>
@@ -190,32 +159,15 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
           </div>
 
           <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => setOpenMonitoring((prev) => !prev)}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-white hover:text-slate-900"
-            >
-              <div className="flex items-center gap-3">
-                <BarChart3 size={16} />
-                <span className="font-medium">Monitoring</span>
-              </div>
+            <button type="button" onClick={() => setOpenMonitoring((prev) => !prev)} className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition-colors hover:bg-white hover:text-slate-900">
+              <div className="flex items-center gap-3"><BarChart3 size={16} /><span className="font-medium">Monitoring</span></div>
               {openMonitoring ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
             </button>
-
             {openMonitoring && (
               <div className="ml-5 mt-1 space-y-1 border-l border-[#e2eaf2] pl-3">
                 {monitoringItems.map(({ label, value, icon: Icon }) => (
-                  <button
-                    key={value + label}
-                    onClick={() => handleItemClick(value)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${
-                      currentPage === value
-                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-                        : 'text-slate-600 hover:bg-white hover:text-slate-800'
-                    }`}
-                  >
-                    {Icon && <Icon size={15} />}
-                    <span>{label}</span>
+                  <button key={value + label} onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]' : 'text-slate-600 hover:bg-white hover:text-slate-800'}`}>
+                    {Icon && <Icon size={15} />}<span>{label}</span>
                   </button>
                 ))}
               </div>
@@ -224,42 +176,21 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
         </nav>
 
         <div className="mt-6 border-t border-[#e2eaf2] pt-4">
-          <button
-            onClick={() => handleItemClick('settings')}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-              currentPage === 'settings'
-                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]'
-                : 'text-slate-600 hover:bg-white hover:text-slate-800'
-            }`}
-          >
-            <Settings size={16} />
-            <span>Settings</span>
+          <button onClick={() => handleItemClick('settings')} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${currentPage === 'settings' ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]' : 'text-slate-600 hover:bg-white hover:text-slate-800'}`}>
+            <Settings size={16} /><span>Settings</span>
           </button>
         </div>
 
         {isAdmin && (
-          <button
-            onClick={() => onNavigate('admin')}
-            className={`mt-5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-              currentPage === 'admin'
-                ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
-                : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700'
-            }`}
-          >
-            <Shield size={16} />
-            <span>Admin Panel</span>
+          <button onClick={() => onNavigate('admin')} className={`mt-5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${currentPage === 'admin' ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700'}`}>
+            <Shield size={16} /><span>Admin Panel</span>
           </button>
         )}
 
         <div className="mt-auto pt-5 text-xs text-slate-400">
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-[#e7edf5]">
-            <div className="h-7 w-7 rounded-full bg-[#1d4ed8] text-center text-[10px] font-bold leading-7 text-white">
-              {avatarInitial}
-            </div>
-            <div className="min-w-0">
-              <div className="truncate font-medium text-slate-700">{displayName}</div>
-              <div className="truncate text-[10px] text-slate-400">{displayEmail}</div>
-            </div>
+            <div className="h-7 w-7 rounded-full bg-[#1d4ed8] text-center text-[10px] font-bold leading-7 text-white">{avatarInitial}</div>
+            <div className="min-w-0"><div className="truncate font-medium text-slate-700">{displayName}</div><div className="truncate text-[10px] text-slate-400">{displayEmail}</div></div>
           </div>
         </div>
       </aside>
@@ -267,48 +198,13 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
       {showSignalModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">Premium</div>
-                <h3 className="mt-1 text-2xl font-bold text-slate-900">Connect Signals</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSignalModal(false)}
-                className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 hover:bg-slate-200"
-              >
-                ✕
-              </button>
+            <div className="mb-4 flex items-center justify-between"><div><div className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">Premium</div><h3 className="mt-1 text-2xl font-bold text-slate-900">Connect Signals</h3></div>
+              <button type="button" onClick={() => setShowSignalModal(false)} className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 hover:bg-slate-200">✕</button>
             </div>
-
-            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium text-sky-700">Premium signal access</span>
-                <span className="rounded-full bg-sky-600 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
-                  Pro
-                </span>
-              </div>
-              <p className="text-sm leading-6 text-slate-600">
-                Connect premium signal service to unlock live trading alerts, AI trade ideas, and market entry signals.
-              </p>
+            <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5"><div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium text-sky-700">Premium signal access</span><span className="rounded-full bg-sky-600 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">Pro</span></div>
+              <p className="text-sm leading-6 text-slate-600">Connect premium signal service to unlock live trading alerts, AI trade ideas, and market entry signals.</p>
             </div>
-
-            <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowSignalModal(false)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSignalModal(false)}
-                className="flex-1 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500"
-              >
-                Connect
-              </button>
-            </div>
+            <div className="mt-5 flex gap-3"><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl bg-sky-600 px-4 py-3 text-sm font-semibold text-white hover:bg-sky-500">Connect</button></div>
           </div>
         </div>
       )}
