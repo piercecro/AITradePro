@@ -43,7 +43,7 @@ const AppContent = () => {
         }
       }
     };
-    handleAuthRedirect();
+    void handleAuthRedirect();
   }, []);
 
   useEffect(() => {
@@ -77,13 +77,13 @@ const AppContent = () => {
       }
     };
 
-    checkAdmin();
+    void checkAdmin();
   }, [user]);
 
   if (loading || verifying) {
     return (
-      <div className="min-h-screen bg-[#edf3f8] flex items-center justify-center">
-        <div className="text-slate-700 text-xl">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#edf3f8]">
+        <div className="text-xl text-slate-700">Loading...</div>
       </div>
     );
   }
@@ -92,9 +92,9 @@ const AppContent = () => {
     return (
       <>
         <AuthPage />
-        <section className="bg-slate-950 px-4 py-12 sm:px-8">
+        <section className="bg-[#edf3f8] px-4 py-12 sm:px-8">
           <div className="mx-auto max-w-6xl">
-            <h2 className="mb-8 text-center text-2xl font-bold text-white">What our users say</h2>
+            <h2 className="mb-8 text-center text-2xl font-bold text-slate-800">What our users say</h2>
             <Testimonials />
           </div>
         </section>
@@ -123,11 +123,7 @@ const AppContent = () => {
       case 'account':
         return <MyAccountPage />;
       case 'admin':
-        return isAdmin ? (
-          <AdminDepositPanel />
-        ) : (
-          <div className="text-center text-red-500 p-8">Access Denied: Admins Only</div>
-        );
+        return isAdmin ? <AdminDepositPanel /> : <div className="p-8 text-center text-red-500">Access Denied: Admins Only</div>;
       default:
         return <DashboardPage mode="dashboard" />;
     }
@@ -137,7 +133,7 @@ const AppContent = () => {
     <div className="min-h-screen bg-[#edf3f8] text-slate-800">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
       <Header currentPage={currentPage} onNavigate={setCurrentPage} />
-      <main className="ml-[230px] pt-[72px] min-h-screen">{renderPage()}</main>
+      <main className="ml-[230px] min-h-screen pt-[72px]">{renderPage()}</main>
     </div>
   );
 };

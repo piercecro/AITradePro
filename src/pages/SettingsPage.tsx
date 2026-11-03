@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { User, Lock, Mail } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { EyeOff, Eye, Lock, Mail, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -8,11 +8,12 @@ export const SettingsPage = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
       setEmail(user.email || '');
-      loadProfile();
+      void loadProfile();
     }
   }, [user]);
 
@@ -23,9 +24,7 @@ export const SettingsPage = () => {
       .eq('id', user?.id)
       .maybeSingle();
 
-    if (data) {
-      setUsername(data.username || '');
-    }
+    if (data) setUsername(data.username || '');
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -39,7 +38,6 @@ export const SettingsPage = () => {
         .eq('id', user?.id);
 
       if (error) throw error;
-
       setMessage('Profile updated successfully');
     } catch (error: any) {
       setMessage('Error: ' + error.message);
@@ -47,13 +45,13 @@ export const SettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#edf3f8] px-6 py-8 text-slate-800">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="mb-8 text-3xl font-bold text-slate-800">Settings</h1>
+    <div className="min-h-screen bg-[#edf3f8] p-5 text-slate-800 lg:p-6">
+      <div className="mx-auto max-w-[1360px]">
+        <h1 className="mb-6 text-3xl font-bold text-slate-800">Settings</h1>
 
-        <div className="rounded-xl border border-[#dfe7f0] bg-white p-8 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-          <h2 className="mb-6 flex items-center space-x-2 text-xl font-semibold text-slate-800">
-            <User size={24} />
+        <div className="rounded-[18px] border border-[#dfe7f0] bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)] sm:p-8">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-800">
+            <User size={22} className="text-[#1d73f5]" />
             <span>Profile Settings</span>
           </h2>
 
@@ -67,9 +65,9 @@ export const SettingsPage = () => {
             </div>
           )}
 
-          <form onSubmit={handleUpdateProfile} className="space-y-6">
+          <form onSubmit={handleUpdateProfile} className="grid gap-5 md:grid-cols-2">
             <div>
-              <label className="mb-2 flex items-center space-x-2 text-sm text-slate-600">
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600">
                 <User size={16} />
                 <span>Username</span>
               </label>
@@ -77,13 +75,13 @@ export const SettingsPage = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-[#dfe7f0] bg-white px-4 py-3 text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#a7c4ff]"
+                className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-4 py-3 text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#a7c4ff] focus:bg-white"
                 placeholder="Enter your username"
               />
             </div>
 
             <div>
-              <label className="mb-2 flex items-center space-x-2 text-sm text-slate-600">
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-600">
                 <Mail size={16} />
                 <span>Email</span>
               </label>
@@ -91,45 +89,42 @@ export const SettingsPage = () => {
                 type="email"
                 value={email}
                 disabled
-                className="w-full cursor-not-allowed rounded-lg border border-[#dfe7f0] bg-[#f3f6fb] px-4 py-3 text-slate-500"
+                className="w-full cursor-not-allowed rounded-xl border border-[#dfe7f0] bg-[#f3f6fb] px-4 py-3 text-slate-500"
               />
               <p className="mt-2 text-xs text-slate-500">Email cannot be changed</p>
             </div>
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-[#1d4ed8] px-8 py-3 font-semibold text-white transition-colors hover:bg-[#1e3fb8] md:w-auto"
+              className="w-full rounded-xl bg-[#1d73f5] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#1667d8] md:w-fit"
             >
               Save Changes
             </button>
           </form>
         </div>
 
-        <div className="mt-6 rounded-xl border border-[#dfe7f0] bg-white p-8 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-          <h2 className="mb-6 flex items-center space-x-2 text-xl font-semibold text-slate-800">
-            <Lock size={24} />
+        <div className="mt-5 rounded-[18px] border border-[#dfe7f0] bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)] sm:p-8">
+          <h2 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-800">
+            <Lock size={22} className="text-[#1d73f5]" />
             <span>Security</span>
           </h2>
 
-          <div className="space-y-4">
-            <div className="rounded-lg bg-[#f4f7fb] p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-[#e6edf5] bg-[#f8fbff] p-4">
               <div className="mb-2 font-semibold text-slate-800">Two-Factor Authentication</div>
-              <div className="mb-3 text-sm text-slate-500">
-                Add an extra layer of security to your account
-              </div>
-              <button className="rounded-lg bg-slate-200 px-6 py-2 text-slate-700 transition-colors hover:bg-slate-300">
+              <div className="mb-4 text-sm text-slate-500">Add an extra layer of security to your account</div>
+              <button type="button" className="rounded-lg bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-300">
                 Enable 2FA
               </button>
             </div>
 
-            <div className="rounded-lg bg-[#f4f7fb] p-4">
+            <div className="rounded-xl border border-[#e6edf5] bg-[#f8fbff] p-4">
               <div className="mb-2 font-semibold text-slate-800">Change Password</div>
-              <div className="mb-3 text-sm text-slate-500">
-                Update your password regularly to keep your account secure
-              </div>
-              <button className="rounded-lg bg-slate-200 px-6 py-2 text-slate-700 transition-colors hover:bg-slate-300">
+              <div className="mb-4 text-sm text-slate-500">Update your password regularly to keep your account secure</div>
+              <button type="button" onClick={() => setShowPassword((shown) => !shown)} className="rounded-lg bg-slate-200 px-5 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-300">
                 Change Password
               </button>
+              {showPassword && <p className="mt-3 text-sm text-slate-500">Password changes are not available here yet.</p>}
             </div>
           </div>
         </div>
