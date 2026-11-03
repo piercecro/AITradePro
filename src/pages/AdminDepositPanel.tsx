@@ -69,21 +69,11 @@ export const AdminDepositPanel = () => {
     setActionLoading(deposit.id);
 
     try {
-      // 1️⃣ Update deposit status
-      const { error: depositError } = await supabase
-        .from("deposits")
-        .update({ status: "confirmed" })
-        .eq("id", deposit.id);
-
-      if (depositError) throw depositError;
-
-      // 2️⃣ Call RPC to update balance
+      // Confirm the deposit and credit the user's balance atomically on the server.
+      // The database function validates the admin role and prevents double-crediting.
       const { error: rpcError } = await supabase.rpc(
-        "update_user_balance_after_deposit",
-        {
-          user_id_input: deposit.user_id,
-          deposit_amount: deposit.amount,
-        }
+        "confirm_deposit_and_credit_balance",
+        { deposit_id_input: deposit.id }
       );
 
       if (rpcError) throw rpcError;

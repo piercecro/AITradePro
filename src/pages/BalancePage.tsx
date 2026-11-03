@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Plus, Search, Wallet2, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Plus, Search, Wallet2, ChevronDown, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const positionHeaders = [
   'Position',
@@ -14,7 +16,70 @@ const positionHeaders = [
 
 const assetHeaders = ['Coin', 'Accounts', 'Total', 'Available', 'Quantity', 'Price', 'Price (24h)'];
 
+interface BalanceProfile {
+  available_balance: number | string | null;
+  total_deposited?: number | string | null;
+  total_withdrawn?: number | string | null;
+  total_profit?: number | string | null;
+}
+
+const money = (value: number | string | null | undefined) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value ?? 0));
+
 export const BalancePage = () => {
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<BalanceProfile | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  const loadBalance = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      setBalanceLoading(false);
+      setBalanceError('Sign in to view your account balance.');
+      return;
+    }
+
+    setBalanceLoading(true);
+    setBalanceError(null);
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('available_balance, total_deposited, total_withdrawn, total_profit')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Balance page Supabase query failed:', error);
+      setProfile(null);
+      setBalanceError(`${error.message} (user ID: ${user.id})`);
+    } else if (!data) {
+      setProfile(null);
+      setBalanceError(`No user_profiles row found for your signed-in account (user ID: ${user.id}).`);
+    } else {
+      setProfile(data as BalanceProfile);
+    }
+    setBalanceLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadBalance();
+    if (!user) return;
+
+    const interval = window.setInterval(() => void loadBalance(), 10000);
+    const channel = supabase
+      .channel(`balance-page-${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}`,
+      }, () => void loadBalance())
+      .subscribe();
+
+    return () => {
+      window.clearInterval(interval);
+      void supabase.removeChannel(channel);
+    };
+  }, [authLoading, user, loadBalance]);
+
   const [activeTab, setActiveTab] = useState<'assets' | 'positions'>('positions');
 
   const tabs = [
@@ -25,6 +90,27 @@ export const BalancePage = () => {
   return (
     <div className="bg-[#edf3f8] p-5 lg:p-6">
       <div className="mx-auto max-w-[1460px]">
+        <section className="mb-5 rounded-2xl border border-[#dfe7f0] bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium text-slate-500">Available account balance</div>
+              <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                {balanceLoading ? 'Loading…' : money(profile?.available_balance)}
+              </div>
+              <div className="mt-1 text-xs text-slate-500">Live value from your Supabase user profile</div>
+            </div>
+            <button type="button" onClick={() => void loadBalance()} disabled={balanceLoading || authLoading}
+              className="flex items-center gap-2 rounded-lg border border-[#dfe7f0] px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <RefreshCw size={15} className={balanceLoading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
+          {balanceError && <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">Could not load your Supabase balance: {balanceError}</div>}
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Total deposited</div><div className="mt-1 font-semibold text-slate-800">{money(profile?.total_deposited)}</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Total withdrawn</div><div className="mt-1 font-semibold text-slate-800">{money(profile?.total_withdrawn)}</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs text-slate-500">Total profit</div><div className="mt-1 font-semibold text-slate-800">{money(profile?.total_profit)}</div></div>
+          </div>
+        </section>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-[#f3f6fb] p-1 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
             {tabs.map(({ key, label, count }) => (
