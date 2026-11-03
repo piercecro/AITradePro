@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { CheckCircle, Clock3, Headset, Loader2, Send, X } from 'lucide-react';
 
@@ -11,10 +11,10 @@ type SupportRequest = {
 
 export const SupportWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [request, setRequest] = useState<SupportRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const openSupport = () => setIsOpen(true);
@@ -24,8 +24,15 @@ export const SupportWidget = () => {
 
   const submitRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage || submitting) return;
+    const textarea = messageRef.current;
+    const trimmedMessage = textarea?.value.trim() ?? '';
+    if (!trimmedMessage || submitting) {
+      if (!trimmedMessage) {
+        setError('Please enter a message before submitting.');
+        textarea?.focus();
+      }
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -42,7 +49,7 @@ export const SupportWidget = () => {
 
       if (insertError) throw insertError;
       setRequest(data);
-      setMessage('');
+      if (textarea) textarea.value = '';
     } catch (submitError) {
       const messageText = submitError instanceof Error ? submitError.message : 'Could not send your request. Please try again.';
       setError(messageText);
@@ -54,7 +61,7 @@ export const SupportWidget = () => {
   const startAnotherRequest = () => {
     setRequest(null);
     setError(null);
-    setMessage('');
+    if (messageRef.current) messageRef.current.value = '';
   };
 
   return (
@@ -63,21 +70,19 @@ export const SupportWidget = () => {
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label="Open support"
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-900/30 transition hover:scale-105 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
+        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-900/30 transition hover:scale-105 hover:bg-blue-700"
       >
         <Headset size={24} />
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-end bg-slate-950/30 p-4 sm:items-end sm:bg-transparent sm:p-6" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setIsOpen(false);
-        }}>
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="support-title"
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-          >
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-end bg-slate-950/30 p-4 sm:items-end sm:bg-transparent sm:p-6"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsOpen(false);
+          }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="support-title" className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <header className="flex items-center justify-between bg-slate-900 px-5 py-4 text-white">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600"><Headset size={20} /></div>
@@ -105,20 +110,18 @@ export const SupportWidget = () => {
               <form onSubmit={submitRequest} className="p-5">
                 <label htmlFor="support-request" className="mb-2 block text-sm font-semibold text-slate-700">How can we help?</label>
                 <textarea
+                  ref={messageRef}
                   id="support-request"
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
                   maxLength={5000}
                   rows={6}
                   required
                   placeholder="Describe your question or issue..."
                   className="w-full resize-y rounded-xl border border-slate-200 p-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
-                <div className="mt-1 text-right text-xs text-slate-400">{message.length}/5000</div>
                 {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
                 <button
                   type="submit"
-                  disabled={submitting || !message.trim()}
+                  disabled={submitting}
                   className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? <><Loader2 size={17} className="animate-spin" />Submitting...</> : <><Send size={16} />Submit request</>}

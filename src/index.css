@@ -45,10 +45,9 @@
   }
 }
 
-/* Widen candle bodies so the gaps between bars are less pronounced. */
-svg[aria-label="Market candles"] rect,
-svg[aria-label^="candlestick chart"] rect {
-  transform: scaleX(1.3);
+/* Give the market chart's candle bodies more width so the bars don't look isolated. */
+svg[aria-label="Market candles"] rect {
+  transform: scaleX(2.2);
   transform-box: fill-box;
   transform-origin: center;
 }
