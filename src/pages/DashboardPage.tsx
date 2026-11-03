@@ -1,344 +1,160 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
+import { Activity, FlaskConical, LayoutDashboard, TrendingUp, Wallet } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { CryptoChart } from '../components/CryptoChart';
 
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
-  signInWithOAuth: (provider: 'google' | 'apple') => Promise<void>;
-  signOut: () => Promise<void>;
+type DashboardMode = 'dashboard' | 'live-trading' | 'demo';
+
+interface DashboardPageProps {
+  mode?: DashboardMode;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type TradeRow = {
+  id: string;
+  trading_pair: string;
+  trade_type: string;
+  amount: number;
+  profit_loss: number;
+  status: string;
+  opened_at?: string | null;
+  created_at?: string | null;
+};
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const modeMeta: Record<DashboardMode, { title: string; subtitle: string; Icon: typeof LayoutDashboard }> = {
+  dashboard: { title: 'Dashboard', subtitle: 'Overview of your account and markets', Icon: LayoutDashboard },
+  'live-trading': { title: 'Live Trading', subtitle: 'Real-time market chart', Icon: Activity },
+  demo: { title: 'Demo Trading', subtitle: 'Practice with market charts, no risk', Icon: FlaskConical },
+};
 
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [showMessage, setShowMessage] = useState(false);
+const money = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
-
-  const createProfileWithRetry = async (u: User | null, maxRetries = 2) => {
-    if (!u) return;
-
-    const metaUsername = (u.user_metadata as any)?.username ?? (u.user_metadata as any)?.full_name ?? u.email?.split('@')[0] ?? 'User';
-    const email = u.email ?? '';
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const { error: insertErr } = await supabase.from('user_profiles').upsert(
-          {
-            id: u.id,
-            username: metaUsername,
-            email,
-            available_balance: 0,
-            total_deposited: 0,
-            total_withdrawn: 0,
-            total_profit: 0,
-            role: 'user',
-          },
-          { onConflict: 'id' }
-        );
-
-        if (!insertErr) {
-          console.info('Created or updated user profile for', u.id);
-          return;
-        }
-
-        const lowerMessage = insertErr.message?.toLowerCase() ?? '';
-
-        if (lowerMessage.includes('duplicate')) {
-          return;
-        }
-
-        const isMissingColumn = lowerMessage.includes('column') && lowerMessage.includes('does not exist');
-        const isMissingTable = lowerMessage.includes('relation') && lowerMessage.includes('does not exist');
-
-        if (isMissingColumn || isMissingTable) {
-          console.error(
-            'Supabase user_profiles schema is missing required columns or table. Run the profile migration before using balance features.'
-          );
-          console.error('Profile creation error:', insertErr.message);
-          return;
-        }
-
-        const isTransient =
-          lowerMessage.includes('foreign key') ||
-          lowerMessage.includes('could not serialize') ||
-          lowerMessage.includes('timeout');
-
-        if (!isTransient) {
-          console.error('Error creating user profile:', insertErr.message);
-          return;
-        }
-
-        const delayMs = 200 * (attempt + 1);
-        await new Promise((r) => setTimeout(r, delayMs));
-      } catch (err) {
-        console.error('Unexpected error creating profile:', err);
-        return;
-      }
-    }
-
-    console.warn('Exceeded retries creating user profile for', u.id);
-  };
-
-  const ensureProfileExists = async (u: User | null) => {
-    if (!u) return;
-    try {
-      const { data: existing, error: fetchErr, status } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('id', u.id)
-        .single();
-
-      if (fetchErr && status !== 406) {
-        console.warn('Error checking profile existence:', fetchErr.message);
-      }
-
-      if (!existing) {
-        createProfileWithRetry(u).catch((e) => console.error('ensureProfileExists failed:', e));
-      }
-    } catch (err) {
-      console.error('Unexpected error in ensureProfileExists:', err);
-    }
-  };
+export const DashboardPage = ({ mode = 'dashboard' }: DashboardPageProps) => {
+  const { user } = useAuth();
+  const [balance, setBalance] = useState(0);
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [trades, setTrades] = useState<TradeRow[]>([]);
+  const { title, subtitle, Icon } = modeMeta[mode];
 
   useEffect(() => {
-    let mounted = true;
+    if (!user || mode === 'demo') return;
+    let cancelled = false;
 
-    const handleRedirect = async () => {
-      try {
-        const hashParams = window.location.hash;
-        if (hashParams.includes('access_token')) {
-          const { data, error } = await supabase.auth.getSessionFromUrl({
-            storeSession: true,
-          });
-          if (error) {
-            console.error('Error handling redirect:', error.message);
-          } else {
-            const confirmedUser = data.session?.user ?? null;
-            if (!mounted) return;
-            setUser(confirmedUser);
-            setLoading(false);
-            ensureProfileExists(confirmedUser);
-          }
+    const load = async () => {
+      const { data: profile, error: profileErr } = await supabase
+        .from('user_profiles')
+        .select('available_balance, total_profit')
+        .eq('id', user.id)
+        .maybeSingle();
 
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      } catch (err) {
-        console.error('Redirect handler error:', err);
-        if (mounted) setLoading(false);
+      if (profileErr) console.error('Dashboard profile error:', profileErr.message);
+      if (!cancelled) {
+        setBalance(Number(profile?.available_balance ?? 0));
+        setTotalProfit(Number(profile?.total_profit ?? 0));
       }
+
+      const { data: tradeData, error: tradeErr } = await supabase
+        .from('trades')
+        .select('id, trading_pair, trade_type, amount, profit_loss, status, opened_at, created_at')
+        .eq('user_id', user.id)
+        .order('opened_at', { ascending: false })
+        .limit(5);
+
+      if (tradeErr) console.error('Dashboard trades error:', tradeErr.message);
+      if (!cancelled) setTrades((tradeData as TradeRow[]) ?? []);
     };
 
-    handleRedirect();
-
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        setLoading(false);
-        ensureProfileExists(currentUser);
-      })
-      .catch((err) => {
-        console.error('getSession error:', err);
-        if (mounted) setLoading(false);
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const newUser = session?.user ?? null;
-      setUser(newUser);
-      setLoading(false);
-      ensureProfileExists(newUser).catch((e) => console.error(e));
-    });
-
+    load();
     return () => {
-      mounted = false;
-      subscription.unsubscribe();
+      cancelled = true;
     };
-  }, []);
+  }, [user, mode]);
 
-  const signIn = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setErrorMessage('❌ Incorrect email or password. Please try again.');
-        setShowError(true);
-        setTimeout(() => {
-          setShowError(false);
-          setTimeout(() => setErrorMessage(null), 500);
-        }, 5000);
-        throw error;
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signUp = async (email: string, password: string, username: string) => {
-    setSuccessMessage(null);
-    try {
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username },
-          emailRedirectTo: redirectUrl,
-        },
-      });
-
-      if (error) throw error;
-
-      setSuccessMessage('✅ Signup successful! Please check your email to confirm your account.');
-      setShowMessage(true);
-
-      setTimeout(() => {
-        setShowMessage(false);
-        setTimeout(() => setSuccessMessage(null), 500);
-      }, 5000);
-    } catch (err: any) {
-      console.error('Signup error:', err.message);
-    }
-  };
-
-  const signInWithOAuth = async (provider: 'google' | 'apple') => {
-    setLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-    } catch (err: any) {
-      console.error(`OAuth sign in failed for ${provider}:`, err);
-      setErrorMessage(err?.message || `Unable to sign in with ${provider}.`);
-      setShowError(true);
-      setTimeout(() => {
-        setShowError(false);
-        setTimeout(() => setErrorMessage(null), 500);
-      }, 5000);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signOut = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const showStats = mode === 'dashboard';
 
   return (
-    <>
-      {successMessage && (
-        <div
-          className={`fixed bottom-6 right-6 bg-green-500 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
-            showMessage ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-          style={{ zIndex: 9999 }}
-        >
-          <p className="text-sm font-medium mb-3">{successMessage}</p>
-          <button
-            onClick={() => {
-              setShowMessage(false);
-              setTimeout(() => setSuccessMessage(null), 500);
-            }}
-            className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
-          >
-            OK
-          </button>
+    <div className="bg-[#edf3f8] p-5 lg:p-6">
+      <div className="mx-auto max-w-[1460px] space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-white p-2.5 shadow-sm ring-1 ring-[#dfe7f0]">
+            <Icon className="h-5 w-5 text-[#1d4ed8]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
+            <p className="text-sm text-slate-500">{subtitle}</p>
+          </div>
         </div>
-      )}
 
-      {errorMessage && (
-        <div
-          className={`fixed bottom-6 right-6 bg-red-600 text-white shadow-lg rounded-xl px-6 py-4 max-w-sm transition-all duration-500 ease-in-out ${
-            showError ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-          style={{ zIndex: 9999 }}
-        >
-          <p className="text-sm font-medium mb-3">{errorMessage}</p>
-          <button
-            onClick={() => {
-              setShowError(false);
-              setTimeout(() => setErrorMessage(null), 500);
-            }}
-            className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm px-3 py-1.5 rounded-md transition"
-          >
-            OK
-          </button>
+        {showStats && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#dfe7f0] bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Wallet className="h-4 w-4" /> Available balance
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-slate-800">{money(balance)}</div>
+            </div>
+            <div className="rounded-2xl border border-[#dfe7f0] bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <TrendingUp className="h-4 w-4" /> Total profit
+              </div>
+              <div
+                className={`mt-2 text-2xl font-semibold ${
+                  totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'
+                }`}
+              >
+                {money(totalProfit)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-[#dfe7f0] bg-white p-3 shadow-sm">
+          <CryptoChart />
         </div>
-      )}
 
-      <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithOAuth, signOut }}>
-        {children}
-      </AuthContext.Provider>
-    </>
+        {showStats && (
+          <div className="rounded-2xl border border-[#dfe7f0] bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-slate-700">Recent trades</h2>
+            {trades.length === 0 ? (
+              <p className="text-sm text-slate-500">No trades yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-4 font-medium">Pair</th>
+                      <th className="py-2 pr-4 font-medium">Type</th>
+                      <th className="py-2 pr-4 font-medium">Amount</th>
+                      <th className="py-2 pr-4 font-medium">P/L</th>
+                      <th className="py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trades.map((t) => (
+                      <tr key={t.id} className="border-t border-[#eef2f7]">
+                        <td className="py-2 pr-4">{t.trading_pair}</td>
+                        <td className="py-2 pr-4">{t.trade_type}</td>
+                        <td className="py-2 pr-4">{money(Number(t.amount))}</td>
+                        <td
+                          className={`py-2 pr-4 ${
+                            Number(t.profit_loss) >= 0 ? 'text-emerald-600' : 'text-red-500'
+                          }`}
+                        >
+                          {money(Number(t.profit_loss))}
+                        </td>
+                        <td className="py-2">{t.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default DashboardPage;
