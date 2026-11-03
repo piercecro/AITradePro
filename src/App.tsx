@@ -111,7 +111,7 @@ const AppContent = () => {
       case 'demo':
         return <DashboardPage mode="demo" />;
       case 'balance':
-        return <BalancePage />;
+        return <BalancePage onNavigate={setCurrentPage} />;
       case 'trade':
         return <TradePage />;
       case 'my-bot':
