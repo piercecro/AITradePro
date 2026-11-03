@@ -314,32 +314,55 @@ export const TradePage = () => {
               <div><h2 className="font-bold text-slate-800">{selectedSymbol} price movement</h2><p className="text-sm text-slate-500">{currentInstrument.label} · updates every 5 seconds</p></div>
               <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length} open position{selectedOpenTrades.length === 1 ? '' : 's'} on this symbol</div></div>
             </div>
-            <div className="overflow-hidden rounded-xl bg-slate-950 p-3">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#f7f9fc] p-3">
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} candlestick chart with open trade entry levels`}>
-                {[0.25, 0.5, 0.75].map((fraction) => <line key={fraction} x1="0" x2={chartWidth} y1={chartHeight * fraction} y2={chartHeight * fraction} stroke="#263244" strokeDasharray="4 5" />)}
+                {[0.25, 0.5, 0.75].map((fraction) => (
+                  <line
+                    key={fraction}
+                    x1="0"
+                    x2={chartWidth}
+                    y1={chartHeight * fraction}
+                    y2={chartHeight * fraction}
+                    stroke="#dfe7f1"
+                    strokeDasharray="4 6"
+                  />
+                ))}
                 {selectedOpenTrades.map((trade) => {
                   const y = priceToY(trade.entry_price);
-                  return <g key={trade.id}><line x1="0" x2={chartWidth} y1={y} y2={y} stroke={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} strokeDasharray="7 5" /><text x="8" y={Math.max(y - 5, 12)} fill={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} fontSize="11">{trade.trade_type.toUpperCase()} entry {formatPrice(trade.entry_price, selectedSymbol)}</text></g>;
+                  return (
+                    <g key={trade.id}>
+                      <line x1="0" x2={chartWidth} y1={y} y2={y} stroke={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} strokeDasharray="7 5" />
+                      <text x="8" y={Math.max(y - 5, 12)} fill={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} fontSize="11">{trade.trade_type.toUpperCase()} entry {formatPrice(trade.entry_price, selectedSymbol)}</text>
+                    </g>
+                  );
                 })}
                 {candleData.map((candle, index) => {
-                  const x = priceHistory.length <= 1 ? chartWidth / 2 : (index / Math.max(candleData.length - 1, 1)) * chartWidth;
+                  const x = priceHistory.length <= 1 ? chartWidth / 2 : (index / Math.max(candleData.length - 1, 1)) * (chartWidth - 24) + 12;
                   const yOpen = chartHeight - ((candle.open - minPrice) / priceRange) * chartHeight;
                   const yClose = chartHeight - ((candle.close - minPrice) / priceRange) * chartHeight;
                   const yHigh = chartHeight - ((candle.high - minPrice) / priceRange) * chartHeight;
                   const yLow = chartHeight - ((candle.low - minPrice) / priceRange) * chartHeight;
                   const isUp = candle.close >= candle.open;
                   const color = isUp ? '#22c55e' : '#ef4444';
-                  const candleWidth = 10;
+                  const candleWidth = Math.max(6, Math.min(12, (chartWidth / Math.max(candleData.length, 1)) * 0.7));
 
                   return (
                     <g key={`${candle.open}-${candle.close}-${index}`}>
-                      <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-                      <rect x={x - candleWidth / 2} y={Math.min(yOpen, yClose)} width={candleWidth} height={Math.max(Math.abs(yClose - yOpen), 4)} rx={2} fill={color} opacity={0.9} />
+                      <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+                      <rect
+                        x={x - candleWidth / 2}
+                        y={Math.min(yOpen, yClose)}
+                        width={candleWidth}
+                        height={Math.max(Math.abs(yClose - yOpen), 4)}
+                        rx={2}
+                        fill={color}
+                        opacity={0.9}
+                      />
                     </g>
                   );
                 })}
               </svg>
-              <div className="flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live simulated chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Waiting for price'}</span></div>
+              <div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Waiting for price'}</span></div>
             </div>
             {selectedOpenTrades.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedOpenTrades.map((trade) => {
               const pnl = getPnl(trade, currentPrice);
