@@ -44,3 +44,10 @@
     font: inherit;
   }
 }
+
+/* Give the market chart's candle bodies more width so the bars don't look isolated. */
+svg[aria-label="Market candles"] rect {
+  transform: scaleX(2.2);
+  transform-box: fill-box;
+  transform-origin: center;
+}
