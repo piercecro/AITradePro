@@ -50,15 +50,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        if (insertErr.message && insertErr.message.toLowerCase().includes('duplicate')) {
+        const lowerMessage = insertErr.message?.toLowerCase() ?? '';
+
+        if (lowerMessage.includes('duplicate')) {
+          return;
+        }
+
+        const isMissingColumn = lowerMessage.includes('column') && lowerMessage.includes('does not exist');
+        const isMissingTable = lowerMessage.includes('relation') && lowerMessage.includes('does not exist');
+
+        if (isMissingColumn || isMissingTable) {
+          console.error(
+            'Supabase user_profiles schema is missing required columns or table. Run the profile migration before using balance features.'
+          );
+          console.error('Profile creation error:', insertErr.message);
           return;
         }
 
         const isTransient =
-          insertErr.message &&
-          (insertErr.message.toLowerCase().includes('foreign key') ||
-            insertErr.message.toLowerCase().includes('could not serialize') ||
-            insertErr.message.toLowerCase().includes('timeout'));
+          lowerMessage.includes('foreign key') ||
+          lowerMessage.includes('could not serialize') ||
+          lowerMessage.includes('timeout');
 
         if (!isTransient) {
           console.error('Error creating user profile:', insertErr.message);
@@ -90,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!existing) {
-        createProfileWithRetry(u).catch((e) => console.error(e));
+        createProfileWithRetry(u).catch((e) => console.error('ensureProfileExists failed:', e));
       }
     } catch (err) {
       console.error('Unexpected error in ensureProfileExists:', err);
