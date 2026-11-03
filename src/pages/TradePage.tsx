@@ -344,7 +344,7 @@ export const TradePage = () => {
                   const yLow = chartHeight - ((candle.low - minPrice) / priceRange) * chartHeight;
                   const isUp = candle.close >= candle.open;
                   const color = isUp ? '#22c55e' : '#ef4444';
-                  const candleWidth = Math.max(3, Math.min(10, (chartWidth / Math.max(candleData.length, 1)) * 0.82));
+                  const candleWidth = Math.max(6, Math.min(12, (chartWidth / Math.max(candleData.length, 1)) * 0.7));
 
                   return (
                     <g key={`${candle.open}-${candle.close}-${index}`}>
