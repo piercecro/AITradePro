@@ -151,7 +151,6 @@ export const TradePage = () => {
           if (quote && quote > 0) {
             next[instrument.symbol] = Number(quote.toFixed(4));
           } else {
-            // Random-walk fallback keeps the demo chart and open-position P&L moving without a live quote.
             const last = previous[instrument.symbol] ?? instrument.price;
             const volatility = instrument.category === 'Crypto' ? 0.006 : instrument.category === 'Index' ? 0.002 : 0.003;
             next[instrument.symbol] = Number(Math.max(last * (1 + (Math.random() - 0.5) * volatility), 0.0001).toFixed(4));
@@ -243,7 +242,6 @@ export const TradePage = () => {
     setErrorText(null);
     try {
       const closePrice = marketPrices[trade.trading_pair] ?? trade.entry_price;
-      // The notional was reserved when opened. Release that principal and add the marked-to-market P&L.
       const pnl = getPnl(trade, closePrice);
       const { data: profile, error: profileError } = await supabase.from('user_profiles')
         .select('available_balance, total_profit').eq('id', user.id).maybeSingle();
@@ -322,11 +320,11 @@ export const TradePage = () => {
                 })}
                 {pointCoordinates && <polyline points={pointCoordinates} fill="none" stroke="#60a5fa" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
               </svg>
-              <div className="flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live simulated chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? ''}</span></div>
+              <div className="flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live simulated chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Waiting for price'}</span></div>
             </div>
             {selectedOpenTrades.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedOpenTrades.map((trade) => {
               const pnl = getPnl(trade, currentPrice);
-              return <span key={trade.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${pnl >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{trade.trade_type.toUpperCase()} {formatCurrency(pnl)} unrealized</span>;
+              return <span key={trade.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${pnl >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{trade.trade_type.toUpperCase()} {trade.trading_pair} · {formatCurrency(pnl)}</span>;
             })}</div>}
           </section>
 
@@ -366,7 +364,7 @@ export const TradePage = () => {
               })}</tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-slate-500">Simulated price movements are for demonstration only. Available cash excludes funds reserved for open positions; account equity reflects current position value.</p>
+          <p className="mt-3 text-xs text-slate-500">Available cash excludes funds reserved for open positions; account equity reflects current position value.</p>
         </section>
       </div>
     </div>

@@ -274,6 +274,12 @@ export const MyBotsPage = () => {
                       {isConnected ? 'Connected' : 'Connect'}
                     </button>
                   </div>
+
+                  {isConnected && (
+                    <p className="mt-3 text-[11px] leading-5 text-slate-600">
+                      Automated trading bot generate 5–15% daily returns through smart trading strategies
+                    </p>
+                  )}
                 </div>
               );
             })}
