@@ -26,7 +26,11 @@ interface BalanceProfile {
 const money = (value: number | string | null | undefined) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value ?? 0));
 
-export const BalancePage = () => {
+interface BalancePageProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const BalancePage = ({ onNavigate }: BalancePageProps) => {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<BalanceProfile | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
@@ -139,6 +143,7 @@ export const BalancePage = () => {
             </button>
             <button
               type="button"
+              onClick={() => onNavigate?.('trade')}
               className="rounded-xl bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1e3fb8]"
             >
               + Buy
@@ -173,6 +178,7 @@ export const BalancePage = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => onNavigate?.('trade')}
                     className="rounded-xl bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1e3fb8]"
                   >
                     + Buy
