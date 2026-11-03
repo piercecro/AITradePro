@@ -142,7 +142,8 @@ export const TradePage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('Open');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSymbol, setSelectedSymbol] = useState('EUR/USD');
+  // Start on a CoinGecko-supported pair so the live quote is visible immediately.
+  const [selectedSymbol, setSelectedSymbol] = useState('BTC/USD');
   const [selectedSide, setSelectedSide] = useState<TradeSide>('Buy');
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [tradeAmount, setTradeAmount] = useState<number>(1);
@@ -223,36 +224,24 @@ export const TradePage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    // Live prices (crypto, gold, major FX) come from /api/prices. Instruments we have
-    // no live source for (stocks, bonds, indices, silver) keep the simulated ticker.
+    // Crypto prices come from the server-side CoinGecko route. Unsupported assets
+    // retain their displayed baseline rather than being presented as live quotes.
     const refreshTicker = async () => {
       const live = await fetchLivePrices();
       if (cancelled) return;
 
       setMarketPrices((prev) => {
         const next: Record<string, number> = { ...prev };
-
-        for (const instrument of marketInstruments) {
-          const liveQuote = live[instrument.symbol];
-          if (liveQuote && liveQuote.price > 0) {
-            next[instrument.symbol] = Number(liveQuote.price.toFixed(4));
-            continue;
-          }
-
-          const lastPrice = prev[instrument.symbol] ?? instrument.price;
-          const moveFactor = instrument.category === 'Index' ? 0.008 : instrument.category === 'Bond' ? 0.004 : 0.015;
-          const drift = (Math.random() - 0.5) * moveFactor;
-          const updated = Math.max(lastPrice * (1 + drift), 0.0001);
-          next[instrument.symbol] = Number(updated.toFixed(4));
+        for (const [symbol, quote] of Object.entries(live)) {
+          if (quote.price > 0) next[symbol] = Number(quote.price.toFixed(4));
         }
-
         return next;
       });
     };
 
     void refreshTicker();
+    const interval = window.setInterval(() => void refreshTicker(), 30000);
 
-    const interval = window.setInterval(() => void refreshTicker(), 12000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
@@ -503,7 +492,7 @@ export const TradePage = () => {
               </div>
 
               <div className="flex min-h-[180px] items-center justify-center gap-5">
-                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#d6dff3]">
+                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#dfe9f3]">
                   <div className="absolute inset-[18px] rounded-full bg-[#f5f8fc]" />
                   <div className="relative text-center">
                     <div className="text-[14px] font-black tracking-[-0.04em] text-slate-800">
@@ -515,9 +504,7 @@ export const TradePage = () => {
 
                 <div className="text-left">
                   <div className="text-[14px] font-semibold text-slate-500">Open trades</div>
-                  <div className="mt-1 text-sm text-slate-400">
-                    Your active positions are tracked here in real time.
-                  </div>
+                  <div className="mt-1 text-sm text-slate-400">Your active positions are tracked here in real time.</div>
                 </div>
               </div>
             </section>
@@ -534,26 +521,10 @@ export const TradePage = () => {
               </div>
 
               <div className="mb-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedSide('Buy')}
-                  className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                    selectedSide === 'Buy'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
+                <button type="button" onClick={() => setSelectedSide('Buy')} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${selectedSide === 'Buy' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                   Buy
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSide('Sell')}
-                  className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                    selectedSide === 'Sell'
-                      ? 'bg-rose-600 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
+                <button type="button" onClick={() => setSelectedSide('Sell')} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${selectedSide === 'Sell' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                   Sell
                 </button>
               </div>
@@ -564,11 +535,7 @@ export const TradePage = () => {
                     key={option}
                     type="button"
                     onClick={() => handleOrderSelect(option)}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${
-                      orderType === option
-                        ? 'bg-[#1d73f5] text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${orderType === option ? 'bg-[#1d73f5] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                   >
                     {getOrderLabel(option)}
                   </button>
@@ -583,30 +550,14 @@ export const TradePage = () => {
 
                 {(orderType === 'limit' || orderType === 'take_profit' || orderType === 'stop_loss') && (
                   <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                    <span className="text-sm text-slate-500">
-                      {orderType === 'limit' ? 'Limit price' : orderType === 'take_profit' ? 'Take profit' : 'Stop loss'}
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.0001}
-                      value={triggerPrice > 0 ? triggerPrice : currentPrice}
-                      onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)}
-                      className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none"
-                    />
+                    <span className="text-sm text-slate-500">{orderType === 'limit' ? 'Limit price' : orderType === 'take_profit' ? 'Take profit' : 'Stop loss'}</span>
+                    <input type="number" min={0} step={0.0001} value={triggerPrice > 0 ? triggerPrice : currentPrice} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none" />
                   </div>
                 )}
 
                 <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
                   <span className="text-sm text-slate-500">Quantity</span>
-                  <input
-                    type="number"
-                    min={0.01}
-                    step={0.01}
-                    value={tradeAmount}
-                    onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)}
-                    className="w-24 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none"
-                  />
+                  <input type="number" min={0.01} step={0.01} value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-24 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none" />
                 </div>
 
                 <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
@@ -615,20 +566,9 @@ export const TradePage = () => {
                 </div>
               </div>
 
-              {errorText && (
-                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
-                  {errorText}
-                </div>
-              )}
+              {errorText && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{errorText}</div>}
 
-              <button
-                type="button"
-                onClick={handlePlaceTrade}
-                disabled={isSubmitting}
-                className={`mt-5 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition ${
-                  selectedSide === 'Buy' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
-                } ${isSubmitting ? 'cursor-not-allowed opacity-70' : ''}`}
-              >
+              <button type="button" onClick={handlePlaceTrade} disabled={isSubmitting} className={`mt-5 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition ${selectedSide === 'Buy' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'} ${isSubmitting ? 'cursor-not-allowed opacity-70' : ''}`}>
                 {isSubmitting ? 'Placing order...' : `${selectedSide} ${currentInstrument.symbol} • ${getOrderLabel(orderType)}`}
               </button>
             </section>
@@ -637,20 +577,10 @@ export const TradePage = () => {
           <div className="overflow-hidden bg-[#f7f9fc]">
             <div className="flex flex-col gap-3 border-b border-[#e3ebf4] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-[18px] font-bold text-slate-700">{activeTab} Trades</div>
-
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search
-                    size={15}
-                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search symbol..."
-                    className="w-[220px] rounded-xl border border-[#dfe7f0] bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                  />
+                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type="text" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search symbol..." className="w-[220px] rounded-xl border border-[#dfe7f0] bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
                 </div>
               </div>
             </div>
@@ -663,30 +593,14 @@ export const TradePage = () => {
                   const direction = price >= instrument.price ? 'up' : 'down';
 
                   return (
-                    <button
-                      key={instrument.symbol}
-                      type="button"
-                      onClick={() => setSelectedSymbol(instrument.symbol)}
-                      className={`flex items-center justify-between rounded-2xl border p-3 text-left transition ${
-                        isSelected
-                          ? 'border-[#1d73f5] bg-[#edf5ff] shadow-sm'
-                          : 'border-[#e3ebf4] bg-white hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
+                    <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-2xl border p-3 text-left transition ${isSelected ? 'border-[#1d73f5] bg-[#edf5ff] shadow-sm' : 'border-[#e3ebf4] bg-white hover:border-slate-300 hover:bg-slate-50'}`}>
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-slate-800">{instrument.symbol}</div>
                         <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{instrument.category}</div>
                       </div>
-
                       <div className="text-right">
                         <div className="text-sm font-semibold text-slate-800">{formatPrice(price, instrument.symbol)}</div>
-                        <div
-                          className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${
-                            direction === 'up'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-rose-100 text-rose-700'
-                          }`}
-                        >
+                        <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${direction === 'up' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                           {direction === 'up' ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                           {direction === 'up' ? 'Bullish' : 'Bearish'}
                         </div>
@@ -700,78 +614,27 @@ export const TradePage = () => {
                 <table className="min-w-full text-left text-sm text-slate-700">
                   <thead className="bg-[#f3f6fa] text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Symbol</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Qty</th>
-                      <th className="px-4 py-3">Entry</th>
-                      <th className="px-4 py-3">Order</th>
-                      <th className="px-4 py-3">Opened</th>
-                      <th className="px-4 py-3">PnL</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Action</th>
+                      <th className="px-4 py-3">Symbol</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Qty</th><th className="px-4 py-3">Entry</th><th className="px-4 py-3">Order</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">PnL</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleTrades.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-4 py-16">
-                          <div className="flex flex-col items-center justify-center gap-4 text-center">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300">
-                              <Wallet size={24} />
-                            </div>
-                            <div>
-                              <div className="text-[18px] font-bold text-slate-600">No {activeTab.toLowerCase()} trades</div>
-                              <div className="mt-1 text-sm text-slate-400">Your executed trades will appear here.</div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
+                      <tr><td colSpan={9} className="px-4 py-16"><div className="flex flex-col items-center justify-center gap-4 text-center"><div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300"><Wallet size={24} /></div><div><div className="text-[18px] font-bold text-slate-600">No {activeTab.toLowerCase()} trades</div><div className="mt-1 text-sm text-slate-400">Your executed trades will appear here.</div></div></div></td></tr>
                     ) : (
                       visibleTrades.map((trade) => {
                         const sideClass = trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600';
                         const sideIcon = trade.trade_type === 'buy' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />;
-
                         return (
                           <tr key={trade.id} className="border-t border-[#edf2f7] last:border-0">
                             <td className="px-4 py-3 font-semibold text-slate-800">{trade.trading_pair}</td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${sideClass}`}>
-                                {sideIcon}
-                                {trade.trade_type}
-                              </span>
-                            </td>
+                            <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${sideClass}`}>{sideIcon}{trade.trade_type}</span></td>
                             <td className="px-4 py-3">{trade.amount}</td>
                             <td className="px-4 py-3">{formatPrice(Number(trade.entry_price), trade.trading_pair)}</td>
-                            <td className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              {String(trade.order_type ?? 'market')}
-                            </td>
+                            <td className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{String(trade.order_type ?? 'market')}</td>
                             <td className="px-4 py-3">{formatDate(trade.opened_at)}</td>
                             <td className="px-4 py-3 text-slate-600">{formatCurrency(Number(trade.profit_loss))}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
-                                  trade.status === 'active'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : 'bg-slate-100 text-slate-600'
-                                }`}
-                              >
-                                {trade.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              {trade.status === 'active' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCloseTrade(trade.id)}
-                                  disabled={isClosingTradeId === trade.id}
-                                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {isClosingTradeId === trade.id ? 'Closing...' : 'Close'}
-                                </button>
-                              ) : (
-                                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">-</span>
-                              )}
-                            </td>
+                            <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${trade.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{trade.status}</span></td>
+                            <td className="px-4 py-3">{trade.status === 'active' ? <button type="button" onClick={() => handleCloseTrade(trade.id)} disabled={isClosingTradeId === trade.id} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100">{isClosingTradeId === trade.id ? 'Closing...' : 'Close'}</button> : <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">-</span>}</td>
                           </tr>
                         );
                       })
