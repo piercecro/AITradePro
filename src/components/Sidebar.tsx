@@ -6,6 +6,7 @@ import {
   Briefcase,
   ChevronDown,
   ChevronRight,
+  Headset,
   Home,
   LayoutGrid,
   Settings,
@@ -96,6 +97,7 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
   };
 
   const itemClass = (value: string) => `flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${currentPage === value ? 'bg-white text-slate-900 shadow-sm ring-1 ring-[#e7edf5]' : 'text-slate-600 hover:bg-white hover:text-slate-900'}`;
+  const openSupport = () => window.dispatchEvent(new CustomEvent('aitradepro:open-support'));
 
   return (
     <>
@@ -120,10 +122,14 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
             {openPortfolio && <div className="ml-5 mt-1 space-y-1 border-l border-[#e2eaf2] pl-3">
               {portfolioItems.map(({ label, value, icon: Icon }) => (
                 <div key={value} className="space-y-1">
-                  <button type="button" onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white font-medium text-slate-900' : 'text-slate-600 hover:bg-white'}`}><Icon size={15} /><span>{label}</span></button>
+                  <button type="button" onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white font-medium text-slate-900' : 'text-slate-600 hover:bg-white'}`}>
+                    <Icon size={15} /><span>{label}</span>
+                  </button>
                   {label === 'Portfolio' && <div className="ml-5 space-y-1 border-l border-[#edf2f7] pl-3">
                     {portfolioSubItems.map(({ label: subLabel, value: subValue, icon: SubIcon }) => (
-                      <button key={subValue} type="button" onClick={() => handleItemClick(subValue)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${currentPage === subValue ? 'bg-white font-medium text-slate-900' : 'text-slate-500 hover:bg-white'}`}><SubIcon size={14} /><span>{subLabel}</span></button>
+                      <button key={subValue} type="button" onClick={() => handleItemClick(subValue)} className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${currentPage === subValue ? 'text-blue-700' : 'text-slate-500 hover:bg-white hover:text-slate-800'}`}>
+                        <SubIcon size={13} /><span>{subLabel}</span>
+                      </button>
                     ))}
                   </div>}
                 </div>
@@ -138,7 +144,9 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
             </button>
             {openMonitoring && <div className="ml-5 mt-1 space-y-1 border-l border-[#e2eaf2] pl-3">
               {monitoringItems.map(({ label, value, icon: Icon }) => (
-                <button key={value} type="button" onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white font-medium text-slate-900' : 'text-slate-600 hover:bg-white'}`}><Icon size={15} /><span>{label}</span></button>
+                <button key={value} type="button" onClick={() => handleItemClick(value)} className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors ${currentPage === value ? 'bg-white text-slate-900' : 'text-slate-600 hover:bg-white'}`}>
+                  <Icon size={15} /><span>{label}</span>
+                </button>
               ))}
             </div>}
           </div>
@@ -152,7 +160,10 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
         </nav>
 
         <div className="mt-auto pt-5 text-xs text-slate-400">
-          <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-[#e7edf5]">
+          <button type="button" onClick={openSupport} className="mb-3 flex w-full items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-left text-sm font-semibold text-blue-700 transition hover:bg-blue-100">
+            <Headset size={17} /><span>Support</span>
+          </button>
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-[#e7edf5]">
             <div className="h-7 w-7 rounded-full bg-[#1d4ed8] text-center text-[10px] font-bold leading-7 text-white">{avatarInitial}</div>
             <div className="min-w-0"><div className="truncate font-medium text-slate-700">{displayName}</div><div className="truncate text-[10px] text-slate-400">{displayEmail}</div></div>
           </div>
@@ -163,13 +174,13 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
           <div className="mb-4 flex items-center justify-between">
             <div><div className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">Premium</div><h3 className="mt-1 text-2xl font-bold text-slate-900">Connect Signals</h3></div>
-            <button type="button" onClick={() => setShowSignalModal(false)} aria-label="Close signals dialog" className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 hover:bg-slate-200">✕</button>
+            <button type="button" onClick={() => setShowSignalModal(false)} aria-label="Close signals dialog" className="rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-500 hover:bg-slate-200">×</button>
           </div>
           <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5">
             <div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium text-sky-700">Premium signals</span><span className="text-xs font-semibold text-sky-600">Premium</span></div>
             <p className="text-sm leading-6 text-slate-600">Connect premium signal service to unlock live trading alerts, AI trade ideas, and market entry signals.</p>
           </div>
-          <div className="mt-5 flex gap-3"><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1667d8]">Continue</button></div>
+          <div className="mt-5 flex gap-3"><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600">Close</button><button type="button" onClick={() => setShowSignalModal(false)} className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1667d8]">Continue</button></div>
         </div>
       </div>}
     </>
