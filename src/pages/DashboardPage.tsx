@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchLivePrices } from '../lib/livePrices';
 
 interface UserProfile {
   id: string;
@@ -89,6 +90,46 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 
   const isDemoMode = mode === 'demo';
 
+  useEffect(() => {
+    let active = true;
+
+    const refreshMarketEntries = async () => {
+      const live = await fetchLivePrices();
+
+      if (!active) return;
+
+      setMarketEntries((prev) =>
+        prev.map((entry) => {
+          const quote = live[entry.pair];
+          if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+            return entry;
+          }
+
+          const nextChange = Number(quote.change24h ?? entry.price_change_percentage_24h);
+
+          return {
+            ...entry,
+            current_price: Number(quote.price),
+            price_change_percentage_24h: Number.isFinite(nextChange)
+              ? nextChange
+              : entry.price_change_percentage_24h,
+          };
+        }),
+      );
+    };
+
+    void refreshMarketEntries();
+
+    const refreshId = window.setInterval(() => {
+      void refreshMarketEntries();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(refreshId);
+    };
+  }, []);
+
   const loadDashboardData = async () => {
     if (!user) {
       setProfile(null);
@@ -154,8 +195,6 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
     void loadDashboardData();
     void loadWallets();
 
-    // Refresh the account balance regularly so confirmed deposits and admin
-    // balance updates appear without requiring a logout/login.
     const refreshId = window.setInterval(() => {
       void loadDashboardData();
     }, 15000);
@@ -165,7 +204,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_profiles', filter: `id=eq.${user.id}` },
-        () => void loadDashboardData()
+        () => void loadDashboardData(),
       )
       .subscribe();
 
@@ -331,7 +370,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                 {profileLoading && <div className="mt-1 text-xs text-slate-500">Refreshing account balance…</div>}
                 {profileError && (
                   <div className="mt-2 max-w-xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    Could not load your Supabase balance: {profileError}. Check that your user_profiles row has id = your Auth user ID and that the available_balance column exists and is readable by the authenticated user.
+                    Could not load your Supabase balance: {profileError}. Check that your user_profiles row has id = your Auth user ID and that the available_balance column exists and is readable.
                   </div>
                 )}
               </div>
@@ -477,68 +516,68 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                         {entry.pair.slice(0, 1)}
                       </div>
                       <div>
-                        <div className="font-bold text-slate-800">{entry.pair}</div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{entry.name}</div>
+                        <div className=\"font-bold text-slate-800\">{entry.pair}</div>
+                        <div className=\"text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400\">{entry.name}</div>
                       </div>
                     </div>
 
-                    <div className="font-bold text-slate-800">${formatPrice(entry.current_price)}</div>
+                    <div className=\"font-bold text-slate-800\">${formatPrice(entry.current_price)}</div>
                     <div className={isPositive ? 'font-bold text-emerald-500' : 'font-bold text-rose-500'}>
                       {isPositive ? '+' : ''}
                       {entry.price_change_percentage_24h.toFixed(2)}%
                     </div>
-                    <div className="font-semibold text-slate-700">{formatCompactCurrency(entry.total_volume)}</div>
-                    <div className="text-right font-bold text-slate-800">{formatCompactCurrency(entry.market_cap)}</div>
+                    <div className=\"font-semibold text-slate-700\">{formatCompactCurrency(entry.total_volume)}</div>
+                    <div className=\"text-right font-bold text-slate-800\">{formatCompactCurrency(entry.market_cap)}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="rounded-[18px] border border-[#dfe7f0] bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-            <div className="mb-4 text-lg font-black tracking-[-0.04em] text-slate-800">Recent activity</div>
+          <div className=\"rounded-[18px] border border-[#dfe7f0] bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.02)]\">
+            <div className=\"mb-4 text-lg font-black tracking-[-0.04em] text-slate-800\">Recent activity</div>
 
-            <div className="space-y-3">
+            <div className=\"space-y-3\">
               {recentDeposits.length === 0 && recentTrades.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#d9e3ee] bg-[#f7f9fc] p-4 text-sm text-slate-500">
+                <div className=\"rounded-xl border border-dashed border-[#d9e3ee] bg-[#f7f9fc] p-4 text-sm text-slate-500\">
                   No account activity yet.
                 </div>
               ) : (
                 <>
                   {recentDeposits.slice(0, 3).map((deposit) => (
-                    <div key={deposit.id} className="flex items-center justify-between rounded-xl border border-[#edf2f7] bg-[#f8fbff] p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <div key={deposit.id} className=\"flex items-center justify-between rounded-xl border border-[#edf2f7] bg-[#f8fbff] p-3\">
+                      <div className=\"flex items-center gap-3\">
+                        <div className=\"flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700\">
                           <ArrowDownToLine size={16} />
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-slate-800">Deposit</div>
-                          <div className="text-[11px] text-slate-500">{deposit.status}</div>
+                          <div className=\"text-sm font-bold text-slate-800\">Deposit</div>
+                          <div className=\"text-[11px] text-slate-500\">{deposit.status}</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-black text-slate-800">{formatCurrency(deposit.amount)}</div>
-                        <div className="text-[11px] text-slate-500">{new Date(deposit.created_at).toLocaleDateString()}</div>
+                      <div className=\"text-right\">
+                        <div className=\"text-sm font-black text-slate-800\">{formatCurrency(deposit.amount)}</div>
+                        <div className=\"text-[11px] text-slate-500\">{new Date(deposit.created_at).toLocaleDateString()}</div>
                       </div>
                     </div>
                   ))}
 
                   {recentTrades.slice(0, 3).map((trade) => (
-                    <div key={trade.id} className="flex items-center justify-between rounded-xl border border-[#edf2f7] bg-[#f8fbff] p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <div key={trade.id} className=\"flex items-center justify-between rounded-xl border border-[#edf2f7] bg-[#f8fbff] p-3\">
+                      <div className=\"flex items-center gap-3\">
+                        <div className=\"flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700\">
                           <ArrowUpFromLine size={16} />
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-slate-800">{trade.trading_pair}</div>
-                          <div className="text-[11px] text-slate-500">{trade.status ?? 'active'}</div>
+                          <div className=\"text-sm font-bold text-slate-800\">{trade.trading_pair}</div>
+                          <div className=\"text-[11px] text-slate-500\">{trade.status ?? 'active'}</div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className=\"text-right\">
                         <div className={`text-sm font-black ${Number(trade.profit_loss) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {formatCurrency(Number(trade.profit_loss || 0))}
                         </div>
-                        <div className="text-[11px] text-slate-500">{new Date(trade.opened_at).toLocaleDateString()}</div>
+                        <div className=\"text-[11px] text-slate-500\">{new Date(trade.opened_at).toLocaleDateString()}</div>
                       </div>
                     </div>
                   ))}
@@ -550,33 +589,33 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       </div>
 
       {showDepositModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl">
-            <h3 className="mb-6 text-2xl font-bold text-slate-800">Select Payment Method</h3>
+        <div className=\"fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4\">
+          <div className=\"w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl\">
+            <h3 className=\"mb-6 text-2xl font-bold text-slate-800\">Select Payment Method</h3>
 
-            <div className="mb-6 space-y-4">
+            <div className=\"mb-6 space-y-4\">
               <button
-                type="button"
+                type=\"button\"
                 onClick={() => setSelectedPaymentMethod('crypto')}
                 className={`w-full rounded-xl border-2 p-4 text-left transition ${
                   selectedPaymentMethod === 'crypto' ? 'border-[#1d73f5] bg-[#eff6ff]' : 'border-[#dfe7f0] hover:border-[#c7d7ef]'
                 }`}
               >
-                <div className="font-semibold text-slate-800">Cryptocurrency</div>
-                <div className="mt-1 text-sm text-slate-500">BTC, USDT, USDC, LTC, BNB, ETH</div>
+                <div className=\"font-semibold text-slate-800\">Cryptocurrency</div>
+                <div className=\"mt-1 text-sm text-slate-500\">BTC, USDT, USDC, LTC, BNB, ETH</div>
               </button>
             </div>
 
             {selectedPaymentMethod === 'crypto' && (
               <>
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm text-slate-500">Select Coin</label>
+                <div className=\"mb-4\">
+                  <label className=\"mb-2 block text-sm text-slate-500\">Select Coin</label>
                   <select
                     value={selectedCoin}
                     onChange={(e) => setSelectedCoin(e.target.value)}
-                    className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                    className=\"w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none\"
                   >
-                    <option value="">-- Select Coin --</option>
+                    <option value=\"\">-- Select Coin --</option>
                     {wallets.map((wallet) => (
                       <option key={wallet.id} value={wallet.coin}>
                         {wallet.coin} ({wallet.network})
@@ -585,45 +624,45 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
                   </select>
                 </div>
 
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm text-slate-500">Amount (USD)</label>
+                <div className=\"mb-4\">
+                  <label className=\"mb-2 block text-sm text-slate-500\">Amount (USD)</label>
                   <input
-                    type="number"
+                    type=\"number\"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    min="1"
-                    className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                    placeholder=\"Enter amount\"
+                    min=\"1\"
+                    className=\"w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none\"
                   />
                 </div>
               </>
             )}
 
             {selectedCoin && selectedWallet && (
-              <div className="mb-6 rounded-xl border border-[#dfe7f0] bg-[#f8fbff] p-4">
-                <div className="mb-2 text-sm text-slate-500">{selectedWallet.label} Address</div>
-                <div className="break-all font-mono text-sm text-slate-700">{selectedWallet.address}</div>
+              <div className=\"mb-6 rounded-xl border border-[#dfe7f0] bg-[#f8fbff] p-4\">
+                <div className=\"mb-2 text-sm text-slate-500\">{selectedWallet.label} Address</div>
+                <div className=\"break-all font-mono text-sm text-slate-700\">{selectedWallet.address}</div>
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className=\"flex gap-3\">
               <button
-                type="button"
+                type=\"button\"
                 onClick={() => {
                   setShowDepositModal(false);
                   setSelectedPaymentMethod('');
                   setSelectedCoin('');
                   setDepositAmount('');
                 }}
-                className="flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300"
+                className=\"flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300\"
               >
                 Cancel
               </button>
               <button
-                type="button"
+                type=\"button\"
                 onClick={handleDeposit}
                 disabled={!selectedPaymentMethod || !selectedCoin || !depositAmount}
-                className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8] disabled:cursor-not-allowed disabled:opacity-50"
+                className=\"flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8] disabled:cursor-not-allowed disabled:opacity-50\"
               >
                 Proceed
               </button>
@@ -633,72 +672,72 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
       )}
 
       {showWithdrawModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl">
-            <h3 className="mb-6 text-2xl font-bold text-slate-800">Withdraw Funds</h3>
+        <div className=\"fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4\">
+          <div className=\"w-full max-w-md rounded-2xl border border-[#dfe7f0] bg-white p-6 shadow-xl\">
+            <h3 className=\"mb-6 text-2xl font-bold text-slate-800\">Withdraw Funds</h3>
 
-            <form onSubmit={handleWithdraw} className="space-y-4">
+            <form onSubmit={handleWithdraw} className=\"space-y-4\">
               <div>
-                <label className="mb-2 block text-sm text-slate-500">Amount (USD)</label>
+                <label className=\"mb-2 block text-sm text-slate-500\">Amount (USD)</label>
                 <input
-                  type="number"
+                  type=\"number\"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  min="10"
-                  step="0.01"
+                  min=\"10\"
+                  step=\"0.01\"
                   required
-                  placeholder="Enter amount"
-                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                  placeholder=\"Enter amount\"
+                  className=\"w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none\"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-slate-500">Cryptocurrency</label>
+                <label className=\"mb-2 block text-sm text-slate-500\">Cryptocurrency</label>
                 <select
                   value={cryptoType}
                   onChange={(e) => setCryptoType(e.target.value)}
-                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none"
+                  className=\"w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 text-slate-700 outline-none\"
                 >
-                  <option value="BTC">Bitcoin (BTC)</option>
-                  <option value="USDT">Tether (USDT)</option>
-                  <option value="USDC">USD Coin (USDC)</option>
-                  <option value="LTC">Litecoin (LTC)</option>
-                  <option value="BNB">Binance Coin (BNB)</option>
-                  <option value="ETH">Ethereum (ETH)</option>
+                  <option value=\"BTC\">Bitcoin (BTC)</option>
+                  <option value=\"USDT\">Tether (USDT)</option>
+                  <option value=\"USDC\">USD Coin (USDC)</option>
+                  <option value=\"LTC\">Litecoin (LTC)</option>
+                  <option value=\"BNB\">Binance Coin (BNB)</option>
+                  <option value=\"ETH\">Ethereum (ETH)</option>
                 </select>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-slate-500">Wallet Address</label>
+                <label className=\"mb-2 block text-sm text-slate-500\">Wallet Address</label>
                 <input
-                  type="text"
+                  type=\"text\"
                   value={walletAddress}
                   onChange={(e) => setWalletAddress(e.target.value)}
                   required
-                  placeholder="Enter your wallet address"
-                  className="w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 font-mono text-sm text-slate-700 outline-none"
+                  placeholder=\"Enter your wallet address\"
+                  className=\"w-full rounded-xl border border-[#dfe7f0] bg-[#f9fbff] px-3 py-3 font-mono text-sm text-slate-700 outline-none\"
                 />
               </div>
 
-              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700">
+              <div className=\"rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700\">
                 Your withdrawal will be reviewed by our team. This usually takes 24–48 hours.
               </div>
 
-              <div className="flex gap-3">
+              <div className=\"flex gap-3\">
                 <button
-                  type="button"
+                  type=\"button\"
                   onClick={() => {
                     setShowWithdrawModal(false);
                     setWithdrawAmount('');
                     setWalletAddress('');
                   }}
-                  className="flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300"
+                  className=\"flex-1 rounded-xl bg-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-300\"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8]"
+                  type=\"submit\"
+                  className=\"flex-1 rounded-xl bg-[#1d73f5] px-4 py-3 font-semibold text-white hover:bg-[#1667d8]\"
                 >
                   Submit
                 </button>
@@ -712,97 +751,3 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
 };
 
 export default DashboardPage;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
