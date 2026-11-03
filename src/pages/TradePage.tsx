@@ -13,7 +13,6 @@ import { fetchLivePrices } from '../lib/livePrices';
 
 type TradeSide = 'Buy' | 'Sell';
 type OrderType = 'market' | 'limit' | 'take_profit' | 'stop_loss';
-
 type Instrument = {
   symbol: string;
   label: string;
@@ -21,7 +20,6 @@ type Instrument = {
   description: string;
   price: number;
 };
-
 type TradeRow = {
   id: string;
   trading_pair: string;
@@ -34,12 +32,11 @@ type TradeRow = {
   opened_at: string;
   closed_at?: string | null;
   order_type?: string | null;
-  execution_price?: number | null;
   stop_loss_price?: number | null;
   take_profit_price?: number | null;
-  token_pair?: string | null;
-  created_at?: string | null;
 };
+
+type PricePoint = { price: number; time: string };
 
 const marketInstruments: Instrument[] = [
   { symbol: 'EUR/USD', label: 'Euro / Dollar', category: 'Currency', description: 'Major FX', price: 1.0862 },
@@ -64,154 +61,75 @@ const marketInstruments: Instrument[] = [
   { symbol: 'VIX', label: 'VIX', category: 'Index', description: 'Volatility index', price: 17.8 },
 ];
 
-const tradeTabs = ['Open', 'Closed'];
 const orderOptions: OrderType[] = ['market', 'limit', 'take_profit', 'stop_loss'];
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
-    maximumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
-  }).format(value);
-
-const formatPrice = (value: number, symbol: string) => {
-  if (['EUR/USD', 'GBP/USD', 'AUD/USD', 'USD/JPY'].includes(symbol)) {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: symbol === 'USD/JPY' ? 2 : 4,
-      maximumFractionDigits: symbol === 'USD/JPY' ? 2 : 4,
-    }).format(value);
-  }
-
-  if (['XAU/USD', 'XAG/USD'].includes(symbol)) {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }
-
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
-
-const formatDate = (value: string) =>
-  new Date(value).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-
-const getOrderLabel = (orderType: OrderType) => {
-  switch (orderType) {
-    case 'market':
-      return 'Market';
-    case 'limit':
-      return 'Limit';
-    case 'take_profit':
-      return 'Take Profit';
-    case 'stop_loss':
-      return 'Stop Loss';
-    default:
-      return 'Market';
-  }
-};
-
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', minimumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
+  maximumFractionDigits: Math.abs(value) < 100 ? 4 : 2,
+}).format(value);
+const formatPrice = (value: number, symbol: string) => new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: ['EUR/USD', 'GBP/USD', 'AUD/USD'].includes(symbol) ? 4 : symbol === 'USD/JPY' ? 2 : 2,
+  maximumFractionDigits: ['EUR/USD', 'GBP/USD', 'AUD/USD'].includes(symbol) ? 4 : symbol === 'USD/JPY' ? 2 : 2,
+}).format(value);
+const formatDate = (value: string) => new Date(value).toLocaleString('en-US', {
+  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+});
+const orderLabel = (order: string) => ({
+  market: 'Market', limit: 'Limit', take_profit: 'Take Profit', stop_loss: 'Stop Loss',
+}[order] ?? 'Market');
 const normalizeTrade = (trade: any): TradeRow => ({
   id: trade.id,
   trading_pair: trade.token_pair ?? trade.trading_pair ?? '',
   trade_type: trade.trade_type ?? 'buy',
   amount: Number(trade.amount ?? 0),
   entry_price: Number(trade.execution_price ?? trade.entry_price ?? 0),
-  exit_price: trade.exit_price ?? null,
+  exit_price: trade.exit_price == null ? null : Number(trade.exit_price),
   profit_loss: Number(trade.profit_loss ?? 0),
   status: trade.status ?? 'active',
   opened_at: trade.created_at ?? trade.opened_at ?? new Date().toISOString(),
   closed_at: trade.closed_at ?? null,
   order_type: trade.order_type ?? 'market',
-  execution_price: Number(trade.execution_price ?? trade.entry_price ?? 0),
   stop_loss_price: trade.stop_loss_price ?? null,
   take_profit_price: trade.take_profit_price ?? null,
-  token_pair: trade.token_pair ?? null,
-  created_at: trade.created_at ?? null,
 });
+
+const getPnl = (trade: TradeRow, price: number) =>
+  (trade.trade_type === 'buy' ? price - trade.entry_price : trade.entry_price - price) * trade.amount;
 
 export const TradePage = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('Open');
+  const [activeTab, setActiveTab] = useState<'Open' | 'Closed'>('Open');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USD');
   const [selectedSide, setSelectedSide] = useState<TradeSide>('Buy');
   const [orderType, setOrderType] = useState<OrderType>('market');
-  const [tradeAmount, setTradeAmount] = useState<number>(1);
-  const [triggerPrice, setTriggerPrice] = useState<number>(0);
+  const [tradeAmount, setTradeAmount] = useState(1);
+  const [triggerPrice, setTriggerPrice] = useState(0);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [marketPrices, setMarketPrices] = useState<Record<string, number>>(() =>
     Object.fromEntries(marketInstruments.map((instrument) => [instrument.symbol, instrument.price])),
   );
-  const [availableBalance, setAvailableBalance] = useState<number>(0);
+  const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
+  const [availableBalance, setAvailableBalance] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClosingTradeId, setIsClosingTradeId] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const currentInstrument =
-    marketInstruments.find((instrument) => instrument.symbol === selectedSymbol) ?? marketInstruments[0];
-  const currentPrice = marketPrices[currentInstrument.symbol] ?? currentInstrument.price;
-
-  const handleOrderSelect = (nextOrderType: OrderType) => {
-    setOrderType(nextOrderType);
-
-    if (nextOrderType === 'market') {
-      setTriggerPrice(0);
-      return;
-    }
-
-    if (triggerPrice <= 0) {
-      setTriggerPrice(currentPrice);
-    }
-  };
+  const currentInstrument = marketInstruments.find((item) => item.symbol === selectedSymbol) ?? marketInstruments[0];
+  const currentPrice = marketPrices[selectedSymbol] ?? currentInstrument.price;
 
   const loadProfileBalance = async () => {
-    if (!user) {
-      setAvailableBalance(0);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('available_balance, total_profit')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching user balance:', error.message);
-      setAvailableBalance(0);
-      return;
-    }
-
+    if (!user) { setAvailableBalance(0); return; }
+    const { data, error } = await supabase.from('user_profiles')
+      .select('available_balance').eq('id', user.id).maybeSingle();
+    if (error) { console.error('Error fetching user balance:', error.message); return; }
     setAvailableBalance(Number(data?.available_balance ?? 0));
   };
 
   const loadTrades = async () => {
-    if (!user) {
-      setTrades([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading trades:', error.message);
-      setTrades([]);
-      return;
-    }
-
+    if (!user) { setTrades([]); return; }
+    const { data, error } = await supabase.from('trades').select('*')
+      .eq('user_id', user.id).order('created_at', { ascending: false });
+    if (error) { console.error('Error loading trades:', error.message); return; }
     setTrades((data ?? []).map(normalizeTrade));
   };
 
@@ -222,128 +140,72 @@ export const TradePage = () => {
 
   useEffect(() => {
     let cancelled = false;
-
-    const refreshTicker = async () => {
-      const live = await fetchLivePrices();
+    const refreshPrices = async () => {
+      let live: Record<string, { price: number }> = {};
+      try { live = await fetchLivePrices(); } catch (error) { console.warn('Using simulated prices:', error); }
       if (cancelled) return;
-
-      setMarketPrices((prev) => {
-        const next: Record<string, number> = { ...prev };
-
+      setMarketPrices((previous) => {
+        const next = { ...previous };
         for (const instrument of marketInstruments) {
-          const liveQuote = live[instrument.symbol];
-          if (liveQuote && liveQuote.price > 0) {
-            next[instrument.symbol] = Number(liveQuote.price.toFixed(4));
-            continue;
+          const quote = live[instrument.symbol]?.price;
+          if (quote && quote > 0) {
+            next[instrument.symbol] = Number(quote.toFixed(4));
+          } else {
+            // Random-walk fallback keeps the demo chart and open-position P&L moving without a live quote.
+            const last = previous[instrument.symbol] ?? instrument.price;
+            const volatility = instrument.category === 'Crypto' ? 0.006 : instrument.category === 'Index' ? 0.002 : 0.003;
+            next[instrument.symbol] = Number(Math.max(last * (1 + (Math.random() - 0.5) * volatility), 0.0001).toFixed(4));
           }
-
-          const lastPrice = prev[instrument.symbol] ?? instrument.price;
-          if (instrument.category === 'Crypto') {
-            next[instrument.symbol] = Number(lastPrice.toFixed(4));
-            continue;
-          }
-
-          const moveFactor = instrument.category === 'Index' ? 0.008 : instrument.category === 'Bond' ? 0.004 : 0.015;
-          const drift = (Math.random() - 0.5) * moveFactor;
-          const updated = Math.max(lastPrice * (1 + drift), 0.0001);
-          next[instrument.symbol] = Number(updated.toFixed(4));
         }
-
+        const nextSelectedPrice = next[selectedSymbol] ?? currentInstrument.price;
+        setPriceHistory((history) => [...history, { price: nextSelectedPrice, time: new Date().toLocaleTimeString() }].slice(-40));
         return next;
       });
     };
+    setPriceHistory([{ price: marketPrices[selectedSymbol] ?? currentInstrument.price, time: new Date().toLocaleTimeString() }]);
+    void refreshPrices();
+    const timer = window.setInterval(() => void refreshPrices(), 5000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [selectedSymbol]);
 
-    void refreshTicker();
-    const interval = window.setInterval(() => void refreshTicker(), 30000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  const filteredInstruments = useMemo(() => {
+  const openTrades = useMemo(() => trades.filter((trade) => trade.status === 'active'), [trades]);
+  const visibleTrades = useMemo(() => trades.filter((trade) =>
+    (activeTab === 'Open' ? trade.status === 'active' : trade.status !== 'active') &&
+    trade.trading_pair.toLowerCase().includes(searchTerm.trim().toLowerCase()),
+  ), [activeTab, searchTerm, trades]);
+  const unrealizedPnl = useMemo(() => openTrades.reduce((sum, trade) =>
+    sum + getPnl(trade, marketPrices[trade.trading_pair] ?? trade.entry_price), 0,
+  ), [openTrades, marketPrices]);
+  const openPositionValue = useMemo(() => openTrades.reduce((sum, trade) =>
+    sum + (marketPrices[trade.trading_pair] ?? trade.entry_price) * trade.amount, 0,
+  ), [openTrades, marketPrices]);
+  const accountEquity = availableBalance + openPositionValue;
+  const filteredInstruments = marketInstruments.filter((instrument) => {
     const query = searchTerm.trim().toLowerCase();
+    return !query || instrument.symbol.toLowerCase().includes(query) || instrument.label.toLowerCase().includes(query) || instrument.category.toLowerCase().includes(query);
+  });
 
-    if (!query) {
-      return marketInstruments;
-    }
-
-    return marketInstruments.filter(
-      (instrument) =>
-        instrument.symbol.toLowerCase().includes(query) ||
-        instrument.label.toLowerCase().includes(query) ||
-        instrument.category.toLowerCase().includes(query),
-    );
-  }, [searchTerm]);
-
-  const visibleTrades = useMemo(() => {
-    const filtered = trades.filter((trade) => {
-      if (activeTab === 'Open') {
-        return trade.status === 'active';
-      }
-      return trade.status !== 'active';
-    });
-
-    return filtered.filter((trade) => trade.trading_pair.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [activeTab, searchTerm, trades]);
-
-  const totalOpenValue = useMemo(
-    () =>
-      trades
-        .filter((trade) => trade.status === 'active')
-        .reduce((sum, trade) => sum + Number(trade.amount) * Number(trade.entry_price), 0),
-    [trades],
-  );
-
-  const openTradeCount = trades.filter((trade) => trade.status === 'active').length;
-
-  const getExecutionPrice = () => {
-    if (orderType === 'market') return currentPrice;
-    if (orderType === 'limit' || orderType === 'take_profit' || orderType === 'stop_loss') {
-      return triggerPrice > 0 ? triggerPrice : currentPrice;
-    }
-    return currentPrice;
-  };
+  const getExecutionPrice = () => orderType === 'market' ? currentPrice : triggerPrice > 0 ? triggerPrice : currentPrice;
 
   const handlePlaceTrade = async () => {
-    if (!user) {
-      setErrorText('Please sign in to place a trade.');
-      return;
-    }
-
-    if (!tradeAmount || tradeAmount <= 0) {
-      setErrorText('Trade amount must be greater than zero.');
-      return;
-    }
-
+    if (!user) { setErrorText('Please sign in to place a trade.'); return; }
+    if (!Number.isFinite(tradeAmount) || tradeAmount <= 0) { setErrorText('Trade amount must be greater than zero.'); return; }
     const executionPrice = getExecutionPrice();
     const notional = executionPrice * tradeAmount;
-
-    if (availableBalance < notional) {
-      setErrorText(`Not enough balance. You have ${formatCurrency(availableBalance)} available.`);
-      return;
-    }
+    if (availableBalance < notional) { setErrorText(`Not enough balance. You have ${formatCurrency(availableBalance)} available.`); return; }
 
     setErrorText(null);
     setIsSubmitting(true);
-
     try {
       const nextBalance = availableBalance - notional;
+      const { error: balanceError } = await supabase.from('user_profiles')
+        .update({ available_balance: nextBalance }).eq('id', user.id);
+      if (balanceError) throw balanceError;
 
-      const { error: profileUpdateError } = await supabase
-        .from('user_profiles')
-        .update({ available_balance: nextBalance })
-        .eq('id', user.id);
-
-      if (profileUpdateError) {
-        throw profileUpdateError;
-      }
-
-      const { error } = await supabase.from('trades').insert({
+      const { error: tradeError } = await supabase.from('trades').insert({
         user_id: user.id,
-        token_pair: currentInstrument.symbol,
-        trading_pair: currentInstrument.symbol,
+        token_pair: selectedSymbol,
+        trading_pair: selectedSymbol,
         trade_type: selectedSide.toLowerCase(),
         amount: tradeAmount,
         entry_price: executionPrice,
@@ -356,283 +218,156 @@ export const TradePage = () => {
         stop_loss_price: orderType === 'stop_loss' ? triggerPrice || executionPrice : null,
         take_profit_price: orderType === 'take_profit' ? triggerPrice || executionPrice : null,
       });
-
-      if (error) {
-        console.error('Error inserting trade:', error.message);
+      if (tradeError) {
         await supabase.from('user_profiles').update({ available_balance: availableBalance }).eq('id', user.id);
-        setErrorText('Trade could not be created.');
-        return;
+        throw tradeError;
       }
-
       setAvailableBalance(nextBalance);
       setSelectedSide('Buy');
       setOrderType('market');
       setTradeAmount(1);
       setTriggerPrice(0);
       await loadTrades();
+    } catch (error) {
+      console.error('Could not place trade:', error);
+      setErrorText('Trade could not be created.');
       await loadProfileBalance();
-    } catch (err) {
-      console.error('Unexpected trade insert error:', err);
-      setErrorText('Unexpected error placing trade.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleCloseTrade = async (tradeId: string) => {
     if (!user) return;
-
     const trade = trades.find((item) => item.id === tradeId);
-    if (!trade) return;
-
+    if (!trade || trade.status !== 'active') return;
     setIsClosingTradeId(tradeId);
-
+    setErrorText(null);
     try {
-      const closePrice = marketPrices[trade.trading_pair] ?? Number(trade.entry_price ?? 0);
-      const pnl =
-        trade.trade_type === 'buy'
-          ? (closePrice - Number(trade.entry_price)) * Number(trade.amount)
-          : (Number(trade.entry_price) - closePrice) * Number(trade.amount);
+      const closePrice = marketPrices[trade.trading_pair] ?? trade.entry_price;
+      // The notional was reserved when opened. Release that principal and add the marked-to-market P&L.
+      const pnl = getPnl(trade, closePrice);
+      const { data: profile, error: profileError } = await supabase.from('user_profiles')
+        .select('available_balance, total_profit').eq('id', user.id).maybeSingle();
+      if (profileError) throw profileError;
+      const refund = trade.entry_price * trade.amount;
+      const nextBalance = Number(profile?.available_balance ?? 0) + refund + pnl;
+      const nextProfit = Number(profile?.total_profit ?? 0) + pnl;
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('available_balance, total_profit')
-        .eq('id', user.id)
-        .maybeSingle();
+      const { data: updatedTrade, error: tradeError } = await supabase.from('trades').update({
+        status: 'closed', profit_loss: pnl, exit_price: closePrice, closed_at: new Date().toISOString(),
+      }).eq('id', tradeId).eq('user_id', user.id).eq('status', 'active').select('id').maybeSingle();
+      if (tradeError) throw tradeError;
+      if (!updatedTrade) throw new Error('Trade was already closed. Refresh and try again.');
 
-      if (profileError) {
-        throw profileError;
-      }
-
-      const existingBalance = Number(profileData?.available_balance ?? 0);
-      const existingProfit = Number(profileData?.total_profit ?? 0);
-      const updatedBalance = existingBalance + pnl;
-      const updatedProfit = existingProfit + pnl;
-
-      const { error: updateTradeError } = await supabase
-        .from('trades')
-        .update({
-          status: 'closed',
-          profit_loss: pnl,
-          exit_price: closePrice,
-          closed_at: new Date().toISOString(),
-        })
-        .eq('id', tradeId)
-        .eq('user_id', user.id);
-
-      if (updateTradeError) throw updateTradeError;
-
-      const { error: balanceError } = await supabase
-        .from('user_profiles')
-        .update({ available_balance: updatedBalance, total_profit: updatedProfit })
-        .eq('id', user.id);
-
+      const { error: balanceError } = await supabase.from('user_profiles')
+        .update({ available_balance: nextBalance, total_profit: nextProfit }).eq('id', user.id);
       if (balanceError) throw balanceError;
-
-      setAvailableBalance(updatedBalance);
+      setAvailableBalance(nextBalance);
       await loadTrades();
-      await loadProfileBalance();
-    } catch (err) {
-      console.error('Unexpected close trade error:', err);
-      setErrorText('Could not close trade.');
-    } finally {
-      setIsClosingTradeId(null);
-    }
+    } catch (error) {
+      console.error('Could not close trade:', error);
+      setErrorText('Could not close trade. Please refresh and try again.');
+      await Promise.all([loadTrades(), loadProfileBalance()]);
+    } finally { setIsClosingTradeId(null); }
   };
 
+  const chartWidth = 720;
+  const chartHeight = 210;
+  const prices = priceHistory.map((point) => point.price);
+  const minPrice = Math.min(...prices, currentPrice) * 0.9995;
+  const maxPrice = Math.max(...prices, currentPrice) * 1.0005;
+  const priceRange = Math.max(maxPrice - minPrice, currentPrice * 0.0001, 0.0001);
+  const pointCoordinates = priceHistory.map((point, index) => {
+    const x = priceHistory.length <= 1 ? chartWidth : (index / (priceHistory.length - 1)) * chartWidth;
+    const y = chartHeight - ((point.price - minPrice) / priceRange) * chartHeight;
+    return `${x},${y}`;
+  }).join(' ');
+  const selectedOpenTrades = openTrades.filter((trade) => trade.trading_pair === selectedSymbol);
+  const priceToY = (price: number) => chartHeight - ((price - minPrice) / priceRange) * chartHeight;
+
   return (
-    <div className="bg-[#edf3f8] p-5 lg:p-6">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="overflow-hidden rounded-[20px] border border-[#dfe7f0] bg-[#f4f7fb] shadow-[0_1px_0_rgba(15,23,42,0.02)]">
-          <div className="flex items-center justify-between border-b border-[#e3ebf4] bg-[#f8fafc] px-5 py-4">
-            <div className="inline-flex items-center gap-1 rounded-xl border border-[#dfe7f0] bg-[#f1f5f9] p-1">
-              {tradeTabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className={`rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
-                    activeTab === tab
-                      ? 'bg-white text-[#1d73f5] shadow-sm ring-1 ring-[#dfe9f7]'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+    <div className="min-h-screen bg-[#edf3f8] p-5 lg:p-6">
+      <div className="mx-auto max-w-[1500px] space-y-5">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#dfe7f0] bg-white p-5">
+          <div>
+            <h1 className="text-xl font-bold text-slate-800">Trade</h1>
+            <p className="mt-1 text-sm text-slate-500">Simulated trading. Open-position P&amp;L follows the displayed market price.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+              <div className="text-xs font-medium text-emerald-600">Account equity</div>
+              <strong>{formatCurrency(accountEquity)}</strong>
             </div>
-
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-              Balance: {formatCurrency(availableBalance)}
+            <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
+              <div className="text-xs text-slate-500">Available cash</div>
+              <strong>{formatCurrency(availableBalance)}</strong>
+            </div>
+            <div className={`rounded-xl px-4 py-2 text-sm ${unrealizedPnl >= 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+              <div className="text-xs">Open P&amp;L</div><strong>{formatCurrency(unrealizedPnl)}</strong>
             </div>
           </div>
+        </header>
 
-          <div className="grid grid-cols-1 gap-5 border-b border-[#e3ebf4] bg-[#f3f6fa] p-5 lg:grid-cols-2 lg:p-6">
-            <section className="rounded-2xl border border-[#e3ebf4] bg-white p-4 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Allocation</div>
-                  <div className="text-[18px] font-bold text-slate-800">Trades amount allocation</div>
-                </div>
-                <div className="rounded-full bg-[#edf5ff] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#1d73f5]">
-                  {openTradeCount} active
-                </div>
-              </div>
-
-              <div className="flex min-h-[180px] items-center justify-center gap-5">
-                <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#dfe9f3] border-t-[#2e7df6] border-r-[#8ca8ff] border-b-[#c8d5e6] border-l-[#dfe9f3]">
-                  <div className="absolute inset-[18px] rounded-full bg-[#f5f8fc]" />
-                  <div className="relative text-center">
-                    <div className="text-[14px] font-black tracking-[-0.04em] text-slate-800">
-                      {formatCurrency(totalOpenValue)}
-                    </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total</div>
-                  </div>
-                </div>
-
-                <div className="text-left">
-                  <div className="text-[14px] font-semibold text-slate-500">Open trades</div>
-                  <div className="mt-1 text-sm text-slate-400">Your active positions are tracked here in real time.</div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[#e3ebf4] bg-white p-4 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Order ticket</div>
-                  <div className="text-[18px] font-bold text-slate-800">{currentInstrument.symbol}</div>
-                </div>
-                <div className="rounded-full border border-[#dfe7f0] bg-[#f8fafc] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                  {currentInstrument.category}
-                </div>
-              </div>
-
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setSelectedSide('Buy')} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${selectedSide === 'Buy' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  Buy
-                </button>
-                <button type="button" onClick={() => setSelectedSide('Sell')} className={`rounded-xl px-4 py-3 text-sm font-bold transition ${selectedSide === 'Sell' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                  Sell
-                </button>
-              </div>
-
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                {orderOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => handleOrderSelect(option)}
-                    className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${orderType === option ? 'bg-[#1d73f5] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    {getOrderLabel(option)}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                  <span className="text-sm text-slate-500">Live price</span>
-                  <span className="text-sm font-bold text-slate-800">{formatPrice(currentPrice, currentInstrument.symbol)}</span>
-                </div>
-
-                {(orderType === 'limit' || orderType === 'take_profit' || orderType === 'stop_loss') && (
-                  <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                    <span className="text-sm text-slate-500">{orderType === 'limit' ? 'Limit price' : orderType === 'take_profit' ? 'Take profit' : 'Stop loss'}</span>
-                    <input type="number" min={0} step={0.0001} value={triggerPrice > 0 ? triggerPrice : currentPrice} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-28 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none" />
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                  <span className="text-sm text-slate-500">Quantity</span>
-                  <input type="number" min={0.01} step={0.01} value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-24 bg-transparent text-right text-sm font-semibold text-slate-800 outline-none" />
-                </div>
-
-                <div className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2.5">
-                  <span className="text-sm text-slate-500">Notional</span>
-                  <span className="text-sm font-bold text-slate-800">{formatCurrency(getExecutionPrice() * tradeAmount)}</span>
-                </div>
-              </div>
-
-              {errorText && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{errorText}</div>}
-
-              <button type="button" onClick={handlePlaceTrade} disabled={isSubmitting} className={`mt-5 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition ${selectedSide === 'Buy' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'} ${isSubmitting ? 'cursor-not-allowed opacity-70' : ''}`}>
-                {isSubmitting ? 'Placing order...' : `${selectedSide} ${currentInstrument.symbol} • ${getOrderLabel(orderType)}`}
-              </button>
-            </section>
-          </div>
-
-          <div className="overflow-hidden bg-[#f7f9fc]">
-            <div className="flex flex-col gap-3 border-b border-[#e3ebf4] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="text-[18px] font-bold text-slate-700">{activeTab} Trades</div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="text" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search symbol..." className="w-[220px] rounded-xl border border-[#dfe7f0] bg-white py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
-                </div>
-              </div>
+        <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
+          <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-bold text-slate-800">{selectedSymbol} price movement</h2><p className="text-sm text-slate-500">{currentInstrument.label} · updates every 5 seconds</p></div>
+              <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length} open position{selectedOpenTrades.length === 1 ? '' : 's'} on this symbol</div></div>
             </div>
-
-            <div className="p-5">
-              <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
-                {filteredInstruments.map((instrument) => {
-                  const price = marketPrices[instrument.symbol] ?? instrument.price;
-                  const isSelected = instrument.symbol === selectedSymbol;
-                  const direction = price >= instrument.price ? 'up' : 'down';
-
-                  return (
-                    <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-2xl border p-3 text-left transition ${isSelected ? 'border-[#1d73f5] bg-[#edf5ff] shadow-sm' : 'border-[#e3ebf4] bg-white hover:border-slate-300 hover:bg-slate-50'}`}>
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-slate-800">{instrument.symbol}</div>
-                        <div className="text-[11px] uppercase tracking-[0.12em] text-slate-400">{instrument.category}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-slate-800">{formatPrice(price, instrument.symbol)}</div>
-                        <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${direction === 'up' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                          {direction === 'up' ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                          {direction === 'up' ? 'Bullish' : 'Bearish'}
-                        </div>
-                      </div>
-                    </button>
-                  );
+            <div className="overflow-hidden rounded-xl bg-slate-950 p-3">
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} price chart with open trade entry levels`}>
+                {[0.25, 0.5, 0.75].map((fraction) => <line key={fraction} x1="0" x2={chartWidth} y1={chartHeight * fraction} y2={chartHeight * fraction} stroke="#263244" strokeDasharray="4 5" />)}
+                {selectedOpenTrades.map((trade) => {
+                  const y = priceToY(trade.entry_price);
+                  return <g key={trade.id}><line x1="0" x2={chartWidth} y1={y} y2={y} stroke={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} strokeDasharray="7 5" /><text x="8" y={Math.max(y - 5, 12)} fill={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} fontSize="11">{trade.trade_type.toUpperCase()} entry {formatPrice(trade.entry_price, selectedSymbol)}</text></g>;
                 })}
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-[#e3ebf4] bg-white">
-                <table className="min-w-full text-left text-sm text-slate-700">
-                  <thead className="bg-[#f3f6fa] text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
-                    <tr>
-                      <th className="px-4 py-3">Symbol</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Qty</th><th className="px-4 py-3">Entry</th><th className="px-4 py-3">Order</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">PnL</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleTrades.length === 0 ? (
-                      <tr><td colSpan={9} className="px-4 py-16"><div className="flex flex-col items-center justify-center gap-4 text-center"><div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#dfe7f0] bg-[#f8fafc] text-slate-300"><Wallet size={24} /></div><div><div className="text-[18px] font-bold text-slate-600">No {activeTab.toLowerCase()} trades</div><div className="mt-1 text-sm text-slate-400">Your executed trades will appear here.</div></div></div></td></tr>
-                    ) : (
-                      visibleTrades.map((trade) => {
-                        const sideClass = trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600';
-                        const sideIcon = trade.trade_type === 'buy' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />;
-                        return (
-                          <tr key={trade.id} className="border-t border-[#edf2f7] last:border-0">
-                            <td className="px-4 py-3 font-semibold text-slate-800">{trade.trading_pair}</td>
-                            <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${sideClass}`}>{sideIcon}{trade.trade_type}</span></td>
-                            <td className="px-4 py-3">{trade.amount}</td>
-                            <td className="px-4 py-3">{formatPrice(Number(trade.entry_price), trade.trading_pair)}</td>
-                            <td className="px-4 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{String(trade.order_type ?? 'market')}</td>
-                            <td className="px-4 py-3">{formatDate(trade.opened_at)}</td>
-                            <td className="px-4 py-3 text-slate-600">{formatCurrency(Number(trade.profit_loss))}</td>
-                            <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${trade.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{trade.status}</span></td>
-                            <td className="px-4 py-3">{trade.status === 'active' ? <button type="button" onClick={() => handleCloseTrade(trade.id)} disabled={isClosingTradeId === trade.id} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600 transition hover:bg-rose-100">{isClosingTradeId === trade.id ? 'Closing...' : 'Close'}</button> : <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">-</span>}</td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                {pointCoordinates && <polyline points={pointCoordinates} fill="none" stroke="#60a5fa" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
+              </svg>
+              <div className="flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live simulated chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? ''}</span></div>
             </div>
-          </div>
+            {selectedOpenTrades.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedOpenTrades.map((trade) => {
+              const pnl = getPnl(trade, currentPrice);
+              return <span key={trade.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${pnl >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{trade.trade_type.toUpperCase()} {formatCurrency(pnl)} unrealized</span>;
+            })}</div>}
+          </section>
+
+          <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
+            <div className="mb-4 flex items-center justify-between"><div><h2 className="font-bold text-slate-800">Order ticket</h2><p className="text-sm text-slate-500">{currentInstrument.category} · {currentInstrument.description}</p></div><Wallet className="text-blue-600" size={21} /></div>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              {(['Buy', 'Sell'] as const).map((side) => <button key={side} type="button" onClick={() => setSelectedSide(side)} className={`rounded-xl px-4 py-3 font-bold ${selectedSide === side ? side === 'Buy' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{side}</button>)}
+            </div>
+            <div className="mb-4 grid grid-cols-2 gap-2">{orderOptions.map((option) => <button key={option} type="button" onClick={() => { setOrderType(option); if (option !== 'market' && triggerPrice <= 0) setTriggerPrice(currentPrice); if (option === 'market') setTriggerPrice(0); }} className={`rounded-lg px-3 py-2 text-xs font-bold uppercase ${orderType === option ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{orderLabel(option)}</button>)}</div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Live price</span><strong>{formatPrice(currentPrice, selectedSymbol)}</strong></div>
+              {(orderType !== 'market') && <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">{orderLabel(orderType)} price</span><input aria-label="Order trigger price" type="number" min="0" step="0.0001" value={triggerPrice || currentPrice} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-32 bg-transparent text-right font-semibold outline-none" /></label>}
+              <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Quantity</span><input aria-label="Trade quantity" type="number" min="0.01" step="0.01" value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-24 bg-transparent text-right font-semibold outline-none" /></label>
+              <div className="flex justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Reserved notional</span><strong>{formatCurrency(getExecutionPrice() * tradeAmount)}</strong></div>
+            </div>
+            {errorText && <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p>}
+            <button type="button" onClick={handlePlaceTrade} disabled={isSubmitting} className={`mt-4 w-full rounded-xl px-4 py-3 font-bold text-white disabled:opacity-60 ${selectedSide === 'Buy' ? 'bg-emerald-600' : 'bg-rose-600'}`}>{isSubmitting ? 'Placing order…' : `${selectedSide} ${selectedSymbol} · ${orderLabel(orderType)}`}</button>
+          </section>
         </div>
+
+        <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-2">{(['Open', 'Closed'] as const).map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{tab} trades</button>)}</div>
+            <div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search symbols or instruments" className="w-64 rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-400" /></div>
+          </div>
+          <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5">{filteredInstruments.map((instrument) => {
+            const price = marketPrices[instrument.symbol] ?? instrument.price;
+            const up = price >= instrument.price;
+            return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white'}`}><span><strong className="block text-sm text-slate-800">{instrument.symbol}</strong><small className="text-slate-500">{instrument.category}</small></span><span className="text-right"><strong className="block text-xs">{formatPrice(price, instrument.symbol)}</strong><small className={up ? 'text-emerald-600' : 'text-rose-600'}>{up ? <TrendingUp className="inline" size={12} /> : <TrendingDown className="inline" size={12} />} {up ? 'Up' : 'Down'}</small></span></button>;
+          })}</div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'P&L', 'Status', 'Action'].map((heading) => <th key={heading} className="px-3 py-3">{heading}</th>)}</tr></thead>
+              <tbody>{visibleTrades.length === 0 ? <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No {activeTab.toLowerCase()} trades found.</td></tr> : visibleTrades.map((trade) => {
+                const price = marketPrices[trade.trading_pair] ?? trade.entry_price;
+                const pnl = trade.status === 'active' ? getPnl(trade, price) : trade.profit_loss;
+                return <tr key={trade.id} className="border-t border-slate-100"><td className="px-3 py-3 font-semibold">{trade.trading_pair}</td><td className={`px-3 py-3 font-semibold ${trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{trade.trade_type === 'buy' ? <ArrowUpRight className="inline" size={14} /> : <ArrowDownRight className="inline" size={14} />} {trade.trade_type}</td><td className="px-3 py-3">{trade.amount}</td><td className="px-3 py-3">{formatPrice(trade.entry_price, trade.trading_pair)}</td><td className="px-3 py-3">{orderLabel(trade.order_type ?? 'market')}</td><td className="px-3 py-3">{formatDate(trade.opened_at)}</td><td className={`px-3 py-3 font-semibold ${pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(pnl)}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-bold ${trade.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{trade.status}</span></td><td className="px-3 py-3">{trade.status === 'active' && <button type="button" onClick={() => void handleCloseTrade(trade.id)} disabled={isClosingTradeId === trade.id} className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 disabled:opacity-60">{isClosingTradeId === trade.id ? 'Closing…' : 'Close trade'}</button>}</td></tr>;
+              })}</tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Simulated price movements are for demonstration only. Available cash excludes funds reserved for open positions; account equity reflects current position value.</p>
+        </section>
       </div>
     </div>
   );
