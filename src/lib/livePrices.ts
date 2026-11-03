@@ -7,11 +7,6 @@ export interface LivePrice {
 
 export type LivePriceMap = Record<string, LivePrice>;
 
-/**
- * Fetch live quotes through the server-side /api/prices function. Keeping the
- * CoinGecko request on the server avoids browser CORS issues and prevents the
- * UI from mistaking stale Supabase rows for current market prices.
- */
 export const fetchLivePrices = async (): Promise<LivePriceMap> => {
   try {
     const response = await fetch('/api/prices', {
