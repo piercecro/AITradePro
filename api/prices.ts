@@ -7,6 +7,23 @@ interface CoinGeckoResponse {
   bitcoin?: CoinGeckoQuote;
   ethereum?: CoinGeckoQuote;
   solana?: CoinGeckoQuote;
+  ripple?: CoinGeckoQuote;
+  cardano?: CoinGeckoQuote;
+  dogecoin?: CoinGeckoQuote;
+  chainlink?: CoinGeckoQuote;
+  uniswap?: CoinGeckoQuote;
+  aptos?: CoinGeckoQuote;
+  sui?: CoinGeckoQuote;
+  'bitcoin-cash'?: CoinGeckoQuote;
+  filecoin?: CoinGeckoQuote;
+  arbitrum?: CoinGeckoQuote;
+  'avalanche-2'?: CoinGeckoQuote;
+  tron?: CoinGeckoQuote;
+  near?: CoinGeckoQuote;
+  cosmos?: CoinGeckoQuote;
+  litecoin?: CoinGeckoQuote;
+  stellar?: CoinGeckoQuote;
+  monero?: CoinGeckoQuote;
 }
 
 interface LivePrice {
@@ -31,8 +48,31 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
+    const ids = [
+      'bitcoin',
+      'ethereum',
+      'solana',
+      'ripple',
+      'cardano',
+      'dogecoin',
+      'chainlink',
+      'uniswap',
+      'aptos',
+      'sui',
+      'bitcoin-cash',
+      'filecoin',
+      'arbitrum',
+      'avalanche-2',
+      'tron',
+      'near',
+      'cosmos',
+      'litecoin',
+      'stellar',
+      'monero',
+    ].join(',');
+
     const response = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true',
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
       { headers: { Accept: 'application/json' } },
     );
 
@@ -61,6 +101,23 @@ export default async function handler(request: Request): Promise<Response> {
     addQuote('BTC/USD', 'bitcoin', data.bitcoin);
     addQuote('ETH/USD', 'ethereum', data.ethereum);
     addQuote('SOL/USD', 'solana', data.solana);
+    addQuote('XRP/USD', 'ripple', data.ripple);
+    addQuote('ADA/USD', 'cardano', data.cardano);
+    addQuote('DOGE/USD', 'dogecoin', data.dogecoin);
+    addQuote('LINK/USD', 'chainlink', data.chainlink);
+    addQuote('UNI/USD', 'uniswap', data.uniswap);
+    addQuote('APT/USD', 'aptos', data.aptos);
+    addQuote('SUI/USD', 'sui', data.sui);
+    addQuote('BCH/USD', 'bitcoin-cash', data['bitcoin-cash']);
+    addQuote('FIL/USD', 'filecoin', data.filecoin);
+    addQuote('ARB/USD', 'arbitrum', data.arbitrum);
+    addQuote('AVAX/USD', 'avalanche-2', data['avalanche-2']);
+    addQuote('TRX/USD', 'tron', data.tron);
+    addQuote('NEAR/USD', 'near', data.near);
+    addQuote('ATOM/USD', 'cosmos', data.cosmos);
+    addQuote('LTC/USD', 'litecoin', data.litecoin);
+    addQuote('XLM/USD', 'stellar', data.stellar);
+    addQuote('XMR/USD', 'monero', data.monero);
 
     if (Object.keys(prices).length === 0) {
       return jsonResponse({ error: 'Price provider returned no usable quotes' }, 502);
