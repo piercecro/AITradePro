@@ -47,21 +47,21 @@ export const SettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0c10] pl-16 pt-16">
-      <div className="max-w-4xl mx-auto p-6">
-        <h1 className="text-white text-3xl font-bold mb-8">Settings</h1>
+    <div className="min-h-screen bg-[#edf3f8] px-6 py-8 text-slate-800">
+      <div className="mx-auto max-w-4xl">
+        <h1 className="mb-8 text-3xl font-bold text-slate-800">Settings</h1>
 
-        <div className="bg-[#13151f] rounded-xl p-8 border border-gray-800">
-          <h2 className="text-white text-xl font-semibold mb-6 flex items-center space-x-2">
+        <div className="rounded-xl border border-[#dfe7f0] bg-white p-8 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+          <h2 className="mb-6 flex items-center space-x-2 text-xl font-semibold text-slate-800">
             <User size={24} />
             <span>Profile Settings</span>
           </h2>
 
           {message && (
-            <div className={`mb-6 p-4 rounded-lg ${
+            <div className={`mb-6 rounded-lg p-4 ${
               message.includes('Error')
-                ? 'bg-red-500/10 border border-red-500/20 text-red-500'
-                : 'bg-green-500/10 border border-green-500/20 text-green-500'
+                ? 'border border-red-200 bg-red-50 text-red-600'
+                : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
             }`}>
               {message}
             </div>
@@ -69,7 +69,7 @@ export const SettingsPage = () => {
 
           <form onSubmit={handleUpdateProfile} className="space-y-6">
             <div>
-              <label className="text-gray-400 text-sm mb-2 block flex items-center space-x-2">
+              <label className="mb-2 flex items-center space-x-2 text-sm text-slate-600">
                 <User size={16} />
                 <span>Username</span>
               </label>
@@ -77,13 +77,13 @@ export const SettingsPage = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-[#1a1d29] text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-600 focus:outline-none transition-colors"
+                className="w-full rounded-lg border border-[#dfe7f0] bg-white px-4 py-3 text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-[#a7c4ff]"
                 placeholder="Enter your username"
               />
             </div>
 
             <div>
-              <label className="text-gray-400 text-sm mb-2 block flex items-center space-x-2">
+              <label className="mb-2 flex items-center space-x-2 text-sm text-slate-600">
                 <Mail size={16} />
                 <span>Email</span>
               </label>
@@ -91,43 +91,43 @@ export const SettingsPage = () => {
                 type="email"
                 value={email}
                 disabled
-                className="w-full bg-[#1a1d29] text-gray-500 rounded-lg px-4 py-3 border border-gray-700 cursor-not-allowed"
+                className="w-full cursor-not-allowed rounded-lg border border-[#dfe7f0] bg-[#f3f6fb] px-4 py-3 text-slate-500"
               />
-              <p className="text-gray-500 text-xs mt-2">Email cannot be changed</p>
+              <p className="mt-2 text-xs text-slate-500">Email cannot be changed</p>
             </div>
 
             <button
               type="submit"
-              className="w-full md:w-auto px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="w-full rounded-lg bg-[#1d4ed8] px-8 py-3 font-semibold text-white transition-colors hover:bg-[#1e3fb8] md:w-auto"
             >
               Save Changes
             </button>
           </form>
         </div>
 
-        <div className="bg-[#13151f] rounded-xl p-8 border border-gray-800 mt-6">
-          <h2 className="text-white text-xl font-semibold mb-6 flex items-center space-x-2">
+        <div className="mt-6 rounded-xl border border-[#dfe7f0] bg-white p-8 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+          <h2 className="mb-6 flex items-center space-x-2 text-xl font-semibold text-slate-800">
             <Lock size={24} />
             <span>Security</span>
           </h2>
 
           <div className="space-y-4">
-            <div className="p-4 bg-[#1a1d29] rounded-lg">
-              <div className="text-white font-semibold mb-2">Two-Factor Authentication</div>
-              <div className="text-gray-400 text-sm mb-3">
+            <div className="rounded-lg bg-[#f4f7fb] p-4">
+              <div className="mb-2 font-semibold text-slate-800">Two-Factor Authentication</div>
+              <div className="mb-3 text-sm text-slate-500">
                 Add an extra layer of security to your account
               </div>
-              <button className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">
+              <button className="rounded-lg bg-slate-200 px-6 py-2 text-slate-700 transition-colors hover:bg-slate-300">
                 Enable 2FA
               </button>
             </div>
 
-            <div className="p-4 bg-[#1a1d29] rounded-lg">
-              <div className="text-white font-semibold mb-2">Change Password</div>
-              <div className="text-gray-400 text-sm mb-3">
+            <div className="rounded-lg bg-[#f4f7fb] p-4">
+              <div className="mb-2 font-semibold text-slate-800">Change Password</div>
+              <div className="mb-3 text-sm text-slate-500">
                 Update your password regularly to keep your account secure
               </div>
-              <button className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors">
+              <button className="rounded-lg bg-slate-200 px-6 py-2 text-slate-700 transition-colors hover:bg-slate-300">
                 Change Password
               </button>
             </div>
