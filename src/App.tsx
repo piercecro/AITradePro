@@ -7,6 +7,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { BalancePage } from './pages/BalancePage';
 import { TradePage } from './components/TradePage';
 import { MyBotsPage } from './pages/MyBotsPage';
+import { WatchlistPage } from './pages/WatchlistPage';
+import { MarketplacePage } from './pages/MarketplacePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
@@ -116,6 +118,10 @@ const AppContent = () => {
         return <TradePage />;
       case 'my-bot':
         return <MyBotsPage />;
+      case 'watchlist':
+        return <WatchlistPage />;
+      case 'marketplace':
+        return <MarketplacePage />;
       case 'settings':
         return <SettingsPage />;
       case 'referral':
