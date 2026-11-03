@@ -142,7 +142,6 @@ export const TradePage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('Open');
   const [searchTerm, setSearchTerm] = useState('');
-  // Start on a CoinGecko-supported pair so the live quote is visible immediately.
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USD');
   const [selectedSide, setSelectedSide] = useState<TradeSide>('Buy');
   const [orderType, setOrderType] = useState<OrderType>('market');
@@ -224,17 +223,32 @@ export const TradePage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    // Crypto prices come from the server-side CoinGecko route. Unsupported assets
-    // retain their displayed baseline rather than being presented as live quotes.
     const refreshTicker = async () => {
       const live = await fetchLivePrices();
       if (cancelled) return;
 
       setMarketPrices((prev) => {
         const next: Record<string, number> = { ...prev };
-        for (const [symbol, quote] of Object.entries(live)) {
-          if (quote.price > 0) next[symbol] = Number(quote.price.toFixed(4));
+
+        for (const instrument of marketInstruments) {
+          const liveQuote = live[instrument.symbol];
+          if (liveQuote && liveQuote.price > 0) {
+            next[instrument.symbol] = Number(liveQuote.price.toFixed(4));
+            continue;
+          }
+
+          const lastPrice = prev[instrument.symbol] ?? instrument.price;
+          if (instrument.category === 'Crypto') {
+            next[instrument.symbol] = Number(lastPrice.toFixed(4));
+            continue;
+          }
+
+          const moveFactor = instrument.category === 'Index' ? 0.008 : instrument.category === 'Bond' ? 0.004 : 0.015;
+          const drift = (Math.random() - 0.5) * moveFactor;
+          const updated = Math.max(lastPrice * (1 + drift), 0.0001);
+          next[instrument.symbol] = Number(updated.toFixed(4));
         }
+
         return next;
       });
     };
@@ -285,22 +299,10 @@ export const TradePage = () => {
   const openTradeCount = trades.filter((trade) => trade.status === 'active').length;
 
   const getExecutionPrice = () => {
-    if (orderType === 'market') {
-      return currentPrice;
-    }
-
-    if (orderType === 'limit') {
+    if (orderType === 'market') return currentPrice;
+    if (orderType === 'limit' || orderType === 'take_profit' || orderType === 'stop_loss') {
       return triggerPrice > 0 ? triggerPrice : currentPrice;
     }
-
-    if (orderType === 'take_profit') {
-      return triggerPrice > 0 ? triggerPrice : currentPrice;
-    }
-
-    if (orderType === 'stop_loss') {
-      return triggerPrice > 0 ? triggerPrice : currentPrice;
-    }
-
     return currentPrice;
   };
 
@@ -357,10 +359,7 @@ export const TradePage = () => {
 
       if (error) {
         console.error('Error inserting trade:', error.message);
-        await supabase
-          .from('user_profiles')
-          .update({ available_balance: availableBalance })
-          .eq('id', user.id);
+        await supabase.from('user_profiles').update({ available_balance: availableBalance }).eq('id', user.id);
         setErrorText('Trade could not be created.');
         return;
       }
@@ -381,14 +380,10 @@ export const TradePage = () => {
   };
 
   const handleCloseTrade = async (tradeId: string) => {
-    if (!user) {
-      return;
-    }
+    if (!user) return;
 
     const trade = trades.find((item) => item.id === tradeId);
-    if (!trade) {
-      return;
-    }
+    if (!trade) return;
 
     setIsClosingTradeId(tradeId);
 
@@ -425,21 +420,14 @@ export const TradePage = () => {
         .eq('id', tradeId)
         .eq('user_id', user.id);
 
-      if (updateTradeError) {
-        throw updateTradeError;
-      }
+      if (updateTradeError) throw updateTradeError;
 
       const { error: balanceError } = await supabase
         .from('user_profiles')
-        .update({
-          available_balance: updatedBalance,
-          total_profit: updatedProfit,
-        })
+        .update({ available_balance: updatedBalance, total_profit: updatedProfit })
         .eq('id', user.id);
 
-      if (balanceError) {
-        throw balanceError;
-      }
+      if (balanceError) throw balanceError;
 
       setAvailableBalance(updatedBalance);
       await loadTrades();
