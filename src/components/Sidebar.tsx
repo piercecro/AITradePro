@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BarChart3,
   Bell,
@@ -12,6 +12,8 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface SidebarProps {
   currentPage: string;
@@ -46,9 +48,53 @@ const monitoringItems: SidebarItem[] = [
 ];
 
 export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
+  const { user } = useAuth();
+  const [profileUsername, setProfileUsername] = useState('');
   const [openPortfolio, setOpenPortfolio] = useState(true);
   const [openMonitoring, setOpenMonitoring] = useState(false);
   const [showSignalModal, setShowSignalModal] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUsername = async () => {
+      if (!user) {
+        setProfileUsername('');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+      if (error) {
+        console.error('Error fetching sidebar username:', error.message);
+        setProfileUsername('');
+        return;
+      }
+
+      setProfileUsername(data?.username?.trim() || '');
+    };
+
+    void loadUsername();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  const metadataUsername = typeof user?.user_metadata?.username === 'string'
+    ? user.user_metadata.username
+    : '';
+  const metadataFullName = typeof user?.user_metadata?.full_name === 'string'
+    ? user.user_metadata.full_name
+    : '';
+  const displayName = profileUsername || metadataUsername || metadataFullName || user?.email?.split('@')[0] || 'User';
+  const displayEmail = user?.email || '';
+  const avatarInitial = displayName.charAt(0).toUpperCase() || 'U';
 
   const handleItemClick = (value: string) => {
     if (value === 'signals') {
@@ -208,11 +254,11 @@ export const Sidebar = ({ currentPage, onNavigate, isAdmin }: SidebarProps) => {
         <div className="mt-auto pt-5 text-xs text-slate-400">
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-[#e7edf5]">
             <div className="h-7 w-7 rounded-full bg-[#1d4ed8] text-center text-[10px] font-bold leading-7 text-white">
-              P
+              {avatarInitial}
             </div>
             <div className="min-w-0">
-              <div className="truncate font-medium text-slate-700">Pierce Crosby</div>
-              <div className="truncate text-[10px] text-slate-400">pierce@example.com</div>
+              <div className="truncate font-medium text-slate-700">{displayName}</div>
+              <div className="truncate text-[10px] text-slate-400">{displayEmail}</div>
             </div>
           </div>
         </div>
