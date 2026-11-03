@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { fetchLivePrices } from '../lib/livePrices';
 
 type TradeSide = 'Buy' | 'Sell';
 type OrderType = 'market' | 'limit' | 'take_profit' | 'stop_loss';
@@ -220,11 +221,24 @@ export const TradePage = () => {
   }, [user]);
 
   useEffect(() => {
-    const refreshTicker = () => {
+    let cancelled = false;
+
+    // Live prices (crypto, gold, major FX) come from /api/prices. Instruments we have
+    // no live source for (stocks, bonds, indices, silver) keep the simulated ticker.
+    const refreshTicker = async () => {
+      const live = await fetchLivePrices();
+      if (cancelled) return;
+
       setMarketPrices((prev) => {
         const next: Record<string, number> = { ...prev };
 
         for (const instrument of marketInstruments) {
+          const liveQuote = live[instrument.symbol];
+          if (liveQuote && liveQuote.price > 0) {
+            next[instrument.symbol] = Number(liveQuote.price.toFixed(4));
+            continue;
+          }
+
           const lastPrice = prev[instrument.symbol] ?? instrument.price;
           const moveFactor = instrument.category === 'Index' ? 0.008 : instrument.category === 'Bond' ? 0.004 : 0.015;
           const drift = (Math.random() - 0.5) * moveFactor;
@@ -236,10 +250,13 @@ export const TradePage = () => {
       });
     };
 
-    refreshTicker();
+    void refreshTicker();
 
-    const interval = window.setInterval(refreshTicker, 12000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => void refreshTicker(), 12000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const filteredInstruments = useMemo(() => {

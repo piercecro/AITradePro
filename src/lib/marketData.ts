@@ -1,3 +1,5 @@
+import { fetchLivePrices } from './livePrices';
+
 export interface BotPriceSnapshot {
   price: number;
   change24h: number;
@@ -53,7 +55,22 @@ export const fetchBotMarketSnapshot = async (pairs: string[]): Promise<BotMarket
     return {};
   }
 
-  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd&include_24hr_change=true`;
+  // 1) Prefer our own cached live prices (shared across all visitors).
+  const result: BotMarketMap = {};
+  const live = await fetchLivePrices();
+  for (const quote of Object.values(live)) {
+    if (quote.id && ids.includes(quote.id)) {
+      result[quote.id] = { price: quote.price, change24h: quote.change24h ?? 0 };
+    }
+  }
+
+  const missing = ids.filter((id) => !result[id]);
+  if (!missing.length) {
+    return result;
+  }
+
+  // 2) Fall back to CoinGecko directly for anything we do not have stored.
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${missing.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
   try {
     const response = await fetch(url, {
@@ -68,16 +85,15 @@ export const fetchBotMarketSnapshot = async (pairs: string[]): Promise<BotMarket
 
     const data = (await response.json()) as Record<string, { usd?: number; usd_24h_change?: number }>;
 
-    return Object.fromEntries(
-      Object.entries(data).map(([id, values]) => [
-        id,
-        {
-          price: Number(values.usd ?? 0),
-          change24h: Number(values.usd_24h_change ?? 0),
-        },
-      ]),
-    );
+    for (const [id, values] of Object.entries(data)) {
+      result[id] = {
+        price: Number(values.usd ?? 0),
+        change24h: Number(values.usd_24h_change ?? 0),
+      };
+    }
+
+    return result;
   } catch {
-    return {};
+    return result;
   }
 };

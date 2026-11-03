@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { fetchLivePrices } from '../lib/livePrices';
 
 interface CandleData {
   date: string;
@@ -343,6 +344,17 @@ const fetchFxCandleData = async (pair: MarketPair, days: number) => {
   }
 };
 
+// Puts the stored live price on the newest candle so "Last" reflects the live market.
+const applyLivePrice = (candles: CandleData[], price?: number): CandleData[] => {
+  if (!price || !candles.length) return candles;
+
+  const last = candles[candles.length - 1];
+  return [
+    ...candles.slice(0, -1),
+    { ...last, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) },
+  ];
+};
+
 const fetchPairData = async (pair: MarketPair, days: number): Promise<CandleData[]> => {
   if (DEFAULT_CRYPTO_PAIRS.some((item) => item.key === pair)) {
     return fetchCryptoCandleData(pair, days);
@@ -368,7 +380,23 @@ const CandleChart = ({
   chartMode: ChartMode;
   indicatorMode: IndicatorMode;
 }) => {
-  const width = 960;
+  // Fill the card: measure the container instead of using a fixed 960px canvas.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(960);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => setWidth(Math.max(320, Math.round(el.clientWidth)));
+    update();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const height = 520;
   const padding = 36;
   const maxPrice = Math.max(...data.map((d) => d.high));
@@ -403,7 +431,7 @@ const CandleChart = ({
   }).join(' ');
 
   return (
-    <div className="relative h-[520px] w-full overflow-hidden rounded-xl">
+    <div ref={containerRef} className="relative h-[520px] w-full overflow-hidden rounded-xl">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="h-full w-full"
@@ -482,7 +510,11 @@ export const CryptoChart = () => {
 
       try {
         const daysMap: Record<Timeframe, number> = { '7D': 7, '30D': 30, '90D': 90 };
-        const nextData = await fetchPairData(selectedPair, daysMap[selectedRange]);
+        const [candles, live] = await Promise.all([
+          fetchPairData(selectedPair, daysMap[selectedRange]),
+          fetchLivePrices(),
+        ]);
+        const nextData = applyLivePrice(candles, live[selectedPair]?.price);
         if (isMounted) {
           setData(nextData);
           setHoverIndex(null);
