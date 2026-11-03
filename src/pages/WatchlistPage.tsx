@@ -28,7 +28,45 @@ interface MarketPair extends ExchangeSymbol {
 
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 30_000;
-const BINANCE_API = 'https://api.binance.com/api/v3';
+const REQUEST_TIMEOUT_MS = 6_000;
+const BINANCE_APIS = [
+  'https://api.binance.com/api/v3',
+  'https://api1.binance.com/api/v3',
+  'https://data-api.binance.vision/api/v3',
+];
+
+async function fetchMarketData<T>(path: string, signal?: AbortSignal): Promise<T> {
+  let lastError: unknown;
+
+  for (const api of BINANCE_APIS) {
+    if (signal?.aborted) throw new DOMException('Request was aborted.', 'AbortError');
+
+    const controller = new AbortController();
+    const abortFromParent = () => controller.abort();
+    signal?.addEventListener('abort', abortFromParent, { once: true });
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${api}${path}`, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`Market data service returned ${response.status}.`);
+      return await response.json() as T;
+    } catch (error) {
+      if (signal?.aborted) throw new DOMException('Request was aborted.', 'AbortError');
+      lastError = controller.signal.aborted
+        ? new Error('Market data request timed out.')
+        : error;
+    } finally {
+      window.clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', abortFromParent);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unable to reach the market data service.');
+}
 
 export const WatchlistPage = () => {
   const [pairs, setPairs] = useState<MarketPair[]>([]);
@@ -40,13 +78,7 @@ export const WatchlistPage = () => {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const refreshPrices = useCallback(async (signal?: AbortSignal) => {
-    const response = await fetch(`${BINANCE_API}/ticker/24hr`, {
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal,
-    });
-    if (!response.ok) throw new Error(`Market price service returned ${response.status}.`);
-    const tickers = (await response.json()) as Ticker24h[];
+    const tickers = await fetchMarketData<Ticker24h[]>('/ticker/24hr', signal);
     const tickerBySymbol = new Map(tickers.map((ticker) => [ticker.symbol, ticker]));
 
     setPairs((current) => current.map((pair) => {
@@ -68,28 +100,18 @@ export const WatchlistPage = () => {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    let marketsLoaded = false;
+    let marketLoadInFlight = false;
 
     const loadMarkets = async () => {
+      if (marketLoadInFlight) return;
+      marketLoadInFlight = true;
       setLoading(true);
       setError('');
       try {
-        const [infoResponse, tickerResponse] = await Promise.all([
-          fetch(`${BINANCE_API}/exchangeInfo`, {
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-            signal: controller.signal,
-          }),
-          fetch(`${BINANCE_API}/ticker/24hr`, {
-            headers: { Accept: 'application/json' },
-            cache: 'no-store',
-            signal: controller.signal,
-          }),
-        ]);
-        if (!infoResponse.ok) throw new Error(`Market pair service returned ${infoResponse.status}.`);
-        if (!tickerResponse.ok) throw new Error(`Market price service returned ${tickerResponse.status}.`);
         const [info, tickerData] = await Promise.all([
-          infoResponse.json() as Promise<ExchangeInfoResponse>,
-          tickerResponse.json() as Promise<Ticker24h[]>,
+          fetchMarketData<ExchangeInfoResponse>('/exchangeInfo', controller.signal),
+          fetchMarketData<Ticker24h[]>('/ticker/24hr', controller.signal),
         ]);
         if (!active) return;
 
@@ -115,11 +137,13 @@ export const WatchlistPage = () => {
 
         setPairs(livePairs);
         setUpdatedAt(new Date());
-        if (livePairs.length === 0) setError('The exchange returned no live spot market pairs.');
+        marketsLoaded = livePairs.length > 0;
+        if (!marketsLoaded) setError('The exchange returned no live spot market pairs.');
       } catch (loadError) {
         if (!active || (loadError instanceof DOMException && loadError.name === 'AbortError')) return;
         setError(loadError instanceof Error ? loadError.message : 'Unable to load live market pairs.');
       } finally {
+        marketLoadInFlight = false;
         if (active) setLoading(false);
       }
     };
@@ -127,8 +151,14 @@ export const WatchlistPage = () => {
     void loadMarkets();
     const intervalId = window.setInterval(() => {
       if (!active) return;
+      if (!marketsLoaded) {
+        void loadMarkets();
+        return;
+      }
+
       setRefreshing(true);
       void refreshPrices(controller.signal)
+        .then(() => { if (active) setError(''); })
         .catch((refreshError) => {
           if (active && !(refreshError instanceof DOMException && refreshError.name === 'AbortError')) {
             setError(refreshError instanceof Error ? refreshError.message : 'Unable to refresh prices.');
@@ -159,7 +189,6 @@ export const WatchlistPage = () => {
   const visiblePairs = filteredPairs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const firstItem = filteredPairs.length === 0 ? 0 : page * PAGE_SIZE + 1;
   const lastItem = Math.min((page + 1) * PAGE_SIZE, filteredPairs.length);
-
   const formatPrice = (price: number) => price.toLocaleString('en-US', {
     maximumFractionDigits: price >= 1 ? 4 : 8,
   });
@@ -203,7 +232,7 @@ export const WatchlistPage = () => {
 
           {error && (
             <div role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              {error} Check your connection or try again shortly.
+              {error} Retrying automatically; check your connection or try again shortly.
             </div>
           )}
 
