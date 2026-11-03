@@ -123,11 +123,9 @@ export default async function handler(request: Request): Promise<Response> {
       return jsonResponse({ error: 'Price provider returned no usable quotes' }, 502);
     }
 
-    return jsonResponse(
-      { prices },
-      200,
-      'public, s-maxage=15, stale-while-revalidate=30',
-    );
+    // Keep a short shared cache to limit provider traffic, but do not serve stale
+    // responses while a revalidation is in progress.
+    return jsonResponse({ prices }, 200, 'public, max-age=0, s-maxage=10, must-revalidate');
   } catch (error) {
     console.error('Error fetching live prices:', error);
     return jsonResponse({ error: 'Unable to fetch live prices' }, 502);
