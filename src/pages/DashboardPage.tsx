@@ -109,9 +109,7 @@ export const DashboardPage = ({ mode = 'dashboard' }: DashboardPageProps) => {
           </div>
         )}
 
-        <div className="rounded-2xl border border-[#dfe7f0] bg-white p-3 shadow-sm">
-          <CryptoChart />
-        </div>
+        <CryptoChart />
 
         {showStats && (
           <div className="rounded-2xl border border-[#dfe7f0] bg-white p-5 shadow-sm">
