@@ -184,6 +184,46 @@ export const DashboardPage = ({ mode = 'dashboard' }: { mode?: DashboardMode }) 
   };
 
   useEffect(() => {
+    let active = true;
+
+    const refreshMarketEntries = async () => {
+      const live = await fetchLivePrices();
+
+      if (!active) return;
+
+      setMarketEntries((prev) =>
+        prev.map((entry) => {
+          const quote = live[entry.pair];
+          if (!quote || !Number.isFinite(quote.price) || quote.price <= 0) {
+            return entry;
+          }
+
+          const nextChange = Number(quote.change24h ?? entry.price_change_percentage_24h);
+
+          return {
+            ...entry,
+            current_price: Number(quote.price),
+            price_change_percentage_24h: Number.isFinite(nextChange)
+              ? nextChange
+              : entry.price_change_percentage_24h,
+          };
+        }),
+      );
+    };
+
+    void refreshMarketEntries();
+
+    const refreshId = window.setInterval(() => {
+      void refreshMarketEntries();
+    }, 15000);
+
+    return () => {
+      active = false;
+      window.clearInterval(refreshId);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setProfile(null);
       setRecentTrades([]);
