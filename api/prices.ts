@@ -12,6 +12,18 @@ interface LivePrice {
   updatedAt: string;
 }
 
+// Vercel Node.js function request/response types, kept local to avoid a
+// dependency on @vercel/node in this Vite application.
+interface ApiRequest {
+  method?: string;
+}
+
+interface ApiResponse {
+  setHeader(name: string, value: string): void;
+  status(code: number): ApiResponse;
+  json(body: unknown): ApiResponse;
+}
+
 const LIVE_COIN_IDS: Record<string, string> = {
   'BTC/USD': 'bitcoin',
   'ETH/USD': 'ethereum',
@@ -47,18 +59,17 @@ const LIVE_COIN_IDS: Record<string, string> = {
   'ALGO/USD': 'algorand',
 };
 
-const jsonResponse = (body: unknown, status = 200, cacheControl = 'no-store') =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': cacheControl,
-    },
-  });
+const sendJson = (res: ApiResponse, status: number, body: unknown) =>
+  res.status(status).json(body);
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'GET') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=10, must-revalidate');
+
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    sendJson(res, 405, { error: 'Method not allowed' });
+    return;
   }
 
   try {
@@ -72,9 +83,10 @@ export default async function handler(request: Request): Promise<Response> {
     );
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error('CoinGecko price request failed:', response.status, text);
-      return jsonResponse({ error: `CoinGecko request failed (${response.status})` }, 502);
+      const details = await response.text();
+      console.error('CoinGecko price request failed:', response.status, details);
+      sendJson(res, 502, { error: `CoinGecko request failed (${response.status})` });
+      return;
     }
 
     const data = (await response.json()) as CoinGeckoResponse;
@@ -97,12 +109,13 @@ export default async function handler(request: Request): Promise<Response> {
 
     if (Object.keys(prices).length === 0) {
       console.error('CoinGecko returned no usable price quotes.');
-      return jsonResponse({ error: 'CoinGecko returned no usable price quotes' }, 502);
+      sendJson(res, 502, { error: 'CoinGecko returned no usable price quotes' });
+      return;
     }
 
-    return jsonResponse({ prices }, 200, 'public, max-age=0, s-maxage=10, must-revalidate');
+    sendJson(res, 200, { prices });
   } catch (error) {
     console.error('Error fetching live prices:', error);
-    return jsonResponse({ error: 'Unable to fetch live prices from CoinGecko' }, 502);
+    sendJson(res, 502, { error: 'Unable to fetch live prices from CoinGecko' });
   }
 }
