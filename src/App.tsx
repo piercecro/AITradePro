@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { SupportWidget } from './components/SupportWidget';
 import { DashboardPage } from './pages/DashboardPage';
 import { BalancePage } from './pages/BalancePage';
 import { TradePage } from './components/TradePage';
@@ -140,6 +141,7 @@ const AppContent = () => {
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} isAdmin={isAdmin} />
       <Header currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="ml-[230px] min-h-screen pt-[72px]">{renderPage()}</main>
+      <SupportWidget />
     </div>
   );
 };
