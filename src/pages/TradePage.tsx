@@ -103,7 +103,6 @@ const toCandles = (samples: Candle[], interval: number): Candle[] => {
 export const TradePage = () => {
   const { user } = useAuth();
   const [category, setCategory] = useState<Category>('Crypto');
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [symbol, setSymbol] = useState('BTC/USD');
   const [query, setQuery] = useState('');
   const [prices, setPrices] = useState<LivePriceMap>({});
@@ -133,7 +132,6 @@ export const TradePage = () => {
   const [closingId, setClosingId] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ x: 0, pan: 0 });
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
 
   const instrument = instruments.find((item) => item.symbol === symbol) ?? instruments[0];
   const liveQuote = prices[symbol];
@@ -150,17 +148,6 @@ export const TradePage = () => {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (categoryMenuOpen && categoryMenuRef.current && !categoryMenuRef.current.contains(event.target as Node)) {
-        setCategoryMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [categoryMenuOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,7 +202,7 @@ export const TradePage = () => {
     if (profileResult.error) console.error('Error loading balance:', profileResult.error.message);
     else setBalance(Number(profileResult.data?.available_balance ?? 0));
     if (tradesResult.error) console.error('Error loading trades:', tradesResult.error.message);
-    else setTrades((tradesResult.data ?? []).map((row: any) => ({ id: row.id, trading_pair: row.token_pair ?? row.trading_pair ?? '', trade_type: row.trade_type ?? 'buy', amount: Number(row.amount ?? 0), entry_price: Number(row.entry_price ?? 0), profit_loss: Number(row.profit_loss ?? 0), status: row.status ?? 'active', opened_at: row.opened_at ?? row.created_at ?? new Date().toISOString(), order_type: row.order_type ?? null })));
+    else setTrades((tradesResult.data ?? []).map((row: any) => ({ id: row.id, trading_pair: row.token_pair ?? row.trading_pair ?? '', trade_type: row.trade_type ?? 'buy', amount: Number(row.amount ?? 0), entry_price: Number(row.entry_price ?? 0), profit_loss: Number(row.profit_loss ?? 0), status: row.status ?? 'active', opened_at: row.created_at ?? new Date().toISOString(), order_type: row.order_type ?? null })));
   };
   useEffect(() => { void loadAccount(); }, [user]);
 
@@ -243,7 +230,7 @@ export const TradePage = () => {
   const zoomOut = () => setZoom((value) => clamp(value / 1.25, 1, 8));
   const resetView = () => { setZoom(1); setPan(0); setHoverIndex(null); };
   const movePan = (direction: -1 | 1) => setPan((value) => clamp(value + direction * Math.max(1, Math.floor(count / 5)), 0, maxPan));
-  const onWheel = (event: WheelEvent<HTMLDivElement>) => { event.preventDefault(); if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) movePan(event.deltaX > 0 || event.deltaY > 0 ? 1 : -1); else if (event.deltaY < 0) zoomIn(); else zoomOut(); };
+  const onWheel = (event: WheelEvent<HTMLDivElement>) => { event.preventDefault(); if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) movePan(event.deltaX > 0 || event.deltaY > 0 ? 1 : -1); else { if (event.deltaY < 0) zoomIn(); else zoomOut(); } };
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => { setDragging(true); dragRef.current = { x: event.clientX, pan: safePan }; event.currentTarget.setPointerCapture(event.pointerId); };
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -256,7 +243,7 @@ export const TradePage = () => {
   const onPointerUp = () => setDragging(false);
 
   const openTrades = useMemo(() => trades.filter((trade) => trade.status === 'active'), [trades]);
-  const visibleTrades = useMemo(() => trades.filter((trade) => (activeTab === 'Open' ? trade.status === 'active' : trade.status !== 'active') && trade.trading_pair.toLowerCase().includes(search.toLowerCase())), [search, trades, activeTab]);
+  const visibleTrades = useMemo(() => trades.filter((trade) => (activeTab === 'Open' ? trade.status === 'active' : trade.status !== 'active') && trade.trading_pair.toLowerCase().includes(search.toLowerCase())), [trades, activeTab, search]);
   const totalPnl = openTrades.reduce((sum, trade) => sum + tradePnl(trade, prices[trade.trading_pair]?.price ?? trade.entry_price), 0);
   const orderPrice = orderType === 'market' || !triggerPrice ? livePrice : triggerPrice;
   const chooseCategory = (next: Category) => { setCategory(next); const first = categorySymbols[next][0]; if (first) setSymbol(first); };
@@ -273,7 +260,7 @@ export const TradePage = () => {
       const nextBalance = balance - cost;
       const { error: balanceError } = await supabase.from('user_profiles').update({ available_balance: nextBalance }).eq('id', user.id);
       if (balanceError) throw balanceError;
-      const { error: insertError } = await supabase.from('trades').insert({ user_id: user.id, token_pair: symbol, trading_pair: symbol, trade_type: side.toLowerCase(), amount: quantity, entry_price: orderPrice, status: 'active, opened_at': new Date().toISOString() });
+      const { error: insertError } = await supabase.from('trades').insert({ user_id: user.id, token_pair: symbol, trading_pair: symbol, trade_type: side.toLowerCase(), amount: quantity, entry_price: orderPrice, status: 'active, open', created_at: new Date().toISOString() });
       if (insertError) { await supabase.from('user_profiles').update({ available_balance: balance }).eq('id', user.id); throw insertError; }
       await loadAccount();
     } catch (reason) { console.error(reason); setError('Could not create trade.'); await loadAccount(); }
@@ -300,49 +287,16 @@ export const TradePage = () => {
   };
 
   return <div className="min-h-screen bg-[#edf3f8] p-3 lg:p-5"><div className="mx-auto max-w-[1540px] space-y-4">
-    <div className="relative inline-block" ref={categoryMenuRef}>
-      <button
-        type="button"
-        onClick={() => setCategoryMenuOpen((value) => !value)}
-        className="flex min-w-[180px] items-center justify-between gap-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-left text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400"
-      >
-        <span>{category}</span>
-        <ChevronDown size={14} className={`text-slate-500 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {categoryMenuOpen && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-md border border-slate-300 bg-white shadow-lg ring-1 ring-slate-200">
-          {categories.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => {
-                chooseCategory(item);
-                setCategoryMenuOpen(false);
-              }}
-              className={`block w-full border-0 px-3 py-2 text-left text-sm transition ${
-                item === category
-                  ? 'bg-[#1d73f5] text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-
+    <div className="mb-1 flex flex-wrap gap-2">{categories.map((item) => <button key={item} onClick={() => chooseCategory(item)} className={`rounded-full px-4 py-2 text-sm font-semibold ${category === item ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'}`}>{item}</button>)}</div>
     <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]"><div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2"><div className="flex items-center gap-1"><button aria-label="Pan chart left" title="Pan left" onClick={() => movePan(-1)} className="rounded border bg-white p-1 text-slate-500 hover:bg-slate-100"><MoveHorizontal size={14} className="rotate-180" /></button><button aria-label="Pan chart right" title="Pan right" onClick={() => movePan(1)} className="rounded border bg-white p-1 text-slate-500 hover:bg-slate-100"><MoveHorizontal size={14} /></button><button aria-label="Reset view" title="Reset view" onClick={resetView} className="rounded border bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-slate-500 hover:bg-slate-100">Reset</button></div><div className="flex items-center gap-2"><button aria-label="Toggle grid" onClick={() => setShowGrid((value) => !value)} className={`rounded border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${showGrid ? 'border-slate-300 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'}`}>Grid</button><button aria-label="Toggle moving average" onClick={() => setShowMA((value) => !value)} className={`rounded border px-2 py-1 text-[10px] uppercase tracking-[0.12em] ${showMA ? 'border-slate-300 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'}`}>MA</button><button aria-label="Open settings" onClick={() => setShowSettings((value) => !value)} className="rounded border border-slate-200 bg-white p-1.5 text-slate-500 hover:bg-slate-100"><Settings size={14} /></button></div></div>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"><div><div className="text-[10px] uppercase tracking-widest text-slate-500">{instrument.label} · {timeframe}</div><div className="text-xs text-slate-400">{feedError || 'Live feed active'}</div></div><div className="flex items-center gap-2"><button onClick={() => setTimeframe('5m')} className={`rounded-full px-2 py-1 text-[10px] font-medium ${timeframe === '5m' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>5m</button><button onClick={() => setTimeframe('15m')} className={`rounded-full px-2 py-1 text-[10px] font-medium ${timeframe === '15m' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>15m</button><button onClick={() => setTimeframe('1h')} className={`rounded-full px-2 py-1 text-[10px] font-medium ${timeframe === '1h' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>1h</button><button onClick={() => setTimeframe('1D')} className={`rounded-full px-2 py-1 text-[10px] font-medium ${timeframe === '1D' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'}`}>1D</button></div></div>
-      {showSettings && <div className="mx-3 mb-2 flex gap-4 rounded border bg-slate-50 p-2 text-xs"><label className="flex gap-2"><input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />Grid</label><label className="flex gap-2"><input type="checkbox" checked={showMA} onChange={(event) => setShowMA(event.target.checked)} />Moving average</label></div>}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-slate-50 px-3 py-2"><div className="flex items-center gap-1"><button aria-label="Pan chart left" title="Pan left" onClick={() => movePan(-1)} className="rounded border bg-white p-1 text-slate-600"><MoveHorizontal size={14} className="rotate-180" /></button><button aria-label="Pan chart right" title="Pan right" onClick={() => movePan(1)} className="rounded border bg-white p-1 text-slate-600"><MoveHorizontal size={14} /></button></div><div className="flex items-center gap-2 text-xs"><button onClick={resetView} className="rounded border bg-white px-2 py-1 text-slate-600">Reset</button><button onClick={() => setShowSettings((value) => !value)} className="rounded border bg-white p-1 text-slate-600"><Settings size={14} /></button></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"><div><div className="text-[10px] uppercase tracking-widest text-slate-500">{instrument.label} · {timeframe}</div><strong className="text-lg">{symbol} {livePrice ? priceText(livePrice, symbol) : '—'}</strong></div><div className="text-right text-xs"><span className={livePrice ? 'text-emerald-700' : 'text-amber-700'}>{feedError || `LIVE · ${new Date().toLocaleTimeString()}`}</span><div className="mt-1 flex gap-3 text-slate-500"><span>O {priceText(selectedCandle?.open ?? livePrice ?? instrument.price, symbol)}</span><span>H {priceText(selectedCandle?.high ?? livePrice ?? instrument.price, symbol)}</span><span>L {priceText(selectedCandle?.low ?? livePrice ?? instrument.price, symbol)}</span><span>C {priceText(selectedCandle?.close ?? livePrice ?? instrument.price, symbol)}</span></div></div></div>
+      {showSettings && <div className="mx-3 mb-2 flex gap-4 rounded border bg-slate-50 p-2 text-xs"><label className="flex gap-2"><input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} /> Grid</label><label className="flex gap-2"><input type="checkbox" checked={showMA} onChange={(event) => setShowMA(event.target.checked)} /> MA</label><label className="flex gap-2"><span>Chart</span><select value={chartMode} onChange={(event) => setChartMode(event.target.value as ChartMode)} className="rounded border bg-white px-1 py-0.5"><option value="Candles">Candles</option><option value="Line">Line</option></select></label></div>}
       <div ref={chartRef} className={`relative h-[470px] touch-none overflow-hidden bg-white ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
-        {visible.length ? <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full">{showGrid && Array.from({ length: 6 }, (_, index) => { const gy = plot.top + index / 5 * (chartHeight - plot.top - plot.bottom); return <line key={`grid-${index}`} x1={plot.left} y1={gy} x2={chartWidth - plot.right} y2={gy} stroke="#e2e8f0" strokeWidth="1" />; })}{showGrid && Array.from({ length: 7 }, (_, index) => { const gx = plot.left + index / 6 * (chartWidth - plot.left - plot.right); return <line key={`v-${index}`} x1={gx} y1={plot.top} x2={gx} y2={chartHeight - plot.bottom} stroke="#f1f5f9" strokeWidth="1" />; })}{showMA && maValues.length > 0 && <path d={maValues.map((value, index) => `${index === 0 ? 'M' : 'L'} ${x(index)} ${y(value)}`).join(' ')} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}{visible.map((point, index) => { const x0 = x(index); const y0 = y(point.open); const y1 = y(point.close); const highY = y(point.high); const lowY = y(point.low); const isUp = point.close >= point.open; return <g key={`${point.time}-${index}`}><line x1={x0} y1={highY} x2={x0} y2={lowY} stroke={isUp ? '#16a34a' : '#ef4444'} strokeWidth="1" /><rect x={x0 - candleWidth / 2} y={Math.min(y0, y1)} width={candleWidth} height={Math.max(Math.abs(y1 - y0), 2)} rx="2" fill={isUp ? '#22c55e' : '#ef4444'} opacity={0.95} /></g>; })}{selectedCandle && <g><line x1={x(hoverIndex ?? visible.length - 1)} y1={plot.top} x2={x(hoverIndex ?? visible.length - 1)} y2={chartHeight - plot.bottom} stroke="#94a3b8" strokeDasharray="4 4" /></g>}</svg> : <div className="flex h-full items-center justify-center text-sm text-slate-500">No chart data yet.</div>}
-        <div className="absolute bottom-3 left-3 flex gap-1 rounded border bg-white/95 p-1"><button aria-label="Zoom in" onClick={zoomIn} className="p-1 text-slate-600 hover:bg-slate-100"><ZoomIn size={14} /></button><button aria-label="Zoom out" onClick={zoomOut} className="p-1 text-slate-600 hover:bg-slate-100"><ZoomOut size={14} /></button></div>
-        <div className="absolute right-3 top-3 rounded border bg-white/90 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">{chartMode}</div>
+        {visible.length ? <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full">{showGrid && Array.from({ length: 6 }, (_, index) => { const gy = plot.top + index / 5 * (chartHeight - plot.top - plot.bottom); return <line key={gy} x1={plot.left} x2={chartWidth - plot.right} y1={gy} y2={gy} stroke="#e2e8f0" strokeDasharray="4 6" />; })}{showGrid && Array.from({ length: 8 }, (_, index) => { const gx = plot.left + index / 7 * (chartWidth - plot.left - plot.right); return <line key={gx} x1={gx} x2={gx} y1={plot.top} y2={chartHeight - plot.bottom} stroke="#e2e8f0" strokeDasharray="4 6" />; })}{showMA && visible.length > 1 && <path d={maValues.map((value, index) => `${index === 0 ? 'M' : 'L'} ${x(index)} ${y(value)}`).join(' ')} fill="none" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 5" opacity={0.8} />}{chartMode === 'Line' ? <path d={visible.map((point, index) => `${index === 0 ? 'M' : 'L'} ${x(index)} ${y(point.close)}`).join(' ')} fill="none" stroke="#2563eb" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" /> : visible.map((point, index) => { const openY = y(point.open); const closeY = y(point.close); const highY = y(point.high); const lowY = y(point.low); const isUp = point.close >= point.open; const color = isUp ? '#16a34a' : '#dc2626'; return <g key={`${point.time}-${index}`}><line x1={x(index)} x2={x(index)} y1={highY} y2={lowY} stroke={color} strokeWidth={1.5} /><rect x={x(index) - candleWidth / 2} y={Math.min(openY, closeY)} width={candleWidth} height={Math.max(Math.abs(closeY - openY), 3)} rx={1} fill={color} /></g>; })}{hoverIndex !== null && visible[hoverIndex] && <g><line x1={x(hoverIndex)} x2={x(hoverIndex)} y1={plot.top} y2={chartHeight - plot.bottom} stroke="#60a5fa" strokeDasharray="6 6" /><line x1={plot.left} x2={chartWidth - plot.right} y1={y(visible[hoverIndex].close)} y2={y(visible[hoverIndex].close)} stroke="#60a5fa" strokeDasharray="6 6" /></g>}</svg> : <div className="flex h-full items-center justify-center text-sm text-slate-500">Waiting for live market data…</div>}
+        <div className="absolute bottom-3 left-3 flex gap-1 rounded border bg-white/95 p-1"><button aria-label="Zoom in" onClick={zoomIn} className="p-1"><ZoomIn size={14} /></button><button aria-label="Zoom out" onClick={zoomOut} className="p-1"><ZoomOut size={14} /></button><button aria-label="Reset view" onClick={resetView} className="p-1"><Activity size={14} /></button></div>
       </div>
-      <div className="flex items-center justify-between border-t bg-slate-50 px-3 py-2 text-[10px] text-slate-500"><span>{visible.length ? timeLabel(visible[0].time, timeframe) : 'No candle history'}</span><span>{visible.length ? `Last: ${money(selectedCandle?.close ?? livePrice)}` : 'No live price'}</span></div>
+      <div className="flex items-center justify-between border-t bg-slate-50 px-3 py-2 text-[10px] text-slate-500"><span>{visible.length ? timeLabel(visible[0].time, timeframe) : 'No candle history'}</span><span>{visible.length ? `${visible.length} bars` : 'Waiting'}</span><span>{feedError || 'Live feed connected'}</span></div>
     </div>
     <aside className="space-y-3"><div className="rounded-xl border bg-white p-4"><div className="mb-3 flex items-center justify-between"><div><b className="text-sm">{category} markets</b><div className="text-xs text-slate-500">Relevant pairs</div></div><button className="rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">{categorySymbols[category].length}</button></div><div className="mb-3 flex items-center gap-2 rounded border bg-slate-50 px-2 py-1.5"><Search size={12} className="text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search market" className="w-full bg-transparent text-xs outline-none" /></div><div className="space-y-2">{filtered.map((item) => <button key={item.symbol} onClick={() => setSymbol(item.symbol)} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${symbol === item.symbol ? 'border border-blue-500/30 bg-blue-600/20 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}><div className="flex flex-col"><div className="font-medium">{item.symbol}</div><div className="text-[10px] text-slate-500">{item.label}</div></div><div className="text-xs font-semibold text-emerald-600">{priceText(prices[item.symbol]?.price ?? item.price, item.symbol)}</div></button>)}</div></div><section className="rounded-xl border bg-white p-4"><div className="mb-3 flex flex-wrap items-center justify-between"><div className="flex gap-2">{(['Open', 'Closed'] as const).map((value) => <button key={value} onClick={() => setActiveTab(value)} className={`rounded-full px-2 py-1 text-xs ${activeTab === value ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>{value}</button>)}</div><button className="rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-slate-500">P&L {money(totalPnl)}</button></div><div className="space-y-2">{visibleTrades.length ? visibleTrades.map((trade) => <div key={trade.id} className="rounded-lg border bg-slate-50 p-2 text-xs"><div className="flex items-center justify-between"><strong>{trade.trading_pair}</strong><span className={trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-red-600'}>{trade.trade_type.toUpperCase()}</span></div><div className="mt-1 flex items-center justify-between text-slate-500"><span>{trade.amount} units</span><span>{money(trade.entry_price)}</span></div></div>) : <div className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-500">No {activeTab.toLowerCase()} trades yet.</div>}</div></section></aside></section></div></div>;
 };
