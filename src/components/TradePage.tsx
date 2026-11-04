@@ -9,7 +9,50 @@ export const TradePage = () => {
     const container = pageRef.current;
     if (!container) return;
 
-    const removeLabel = () => {
+    const syncMarketDropdown = () => {
+      const marketCard = container.querySelector('aside > div');
+      const marketList = marketCard?.querySelector(':scope > .space-y-2');
+      if (!(marketCard instanceof HTMLElement) || !(marketList instanceof HTMLElement)) return;
+
+      const marketButtons = Array.from(marketList.querySelectorAll('button'));
+      if (!marketButtons.length) return;
+
+      let dropdown = marketCard.querySelector<HTMLSelectElement>('[data-trade-market-dropdown]');
+      if (!dropdown) {
+        dropdown = document.createElement('select');
+        dropdown.dataset.tradeMarketDropdown = 'true';
+        dropdown.setAttribute('aria-label', 'Select a market pair');
+        dropdown.className = 'mb-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500';
+        dropdown.addEventListener('change', () => {
+          const selectedButton = Array.from(marketList.querySelectorAll('button')).find((button) => {
+            return button.querySelector('div > div')?.textContent?.trim() === dropdown?.value;
+          });
+          selectedButton?.click();
+        });
+        marketList.parentElement?.insertBefore(dropdown, marketList);
+      }
+
+      const options = marketButtons.map((button) => {
+        const pair = button.querySelector('div > div')?.textContent?.trim();
+        const label = button.querySelector('div > div + div')?.textContent?.trim();
+        return pair ? { pair, label: label ?? '' } : null;
+      }).filter((option): option is { pair: string; label: string } => option !== null);
+      const activePair = marketButtons.find((button) => button.className.includes('border-blue-500'))
+        ?.querySelector('div > div')?.textContent?.trim();
+
+      if (dropdown.options.length !== options.length || options.some((option, index) => dropdown?.options[index]?.value !== option.pair)) {
+        dropdown.replaceChildren(...options.map(({ pair, label }) => {
+          const option = document.createElement('option');
+          option.value = pair;
+          option.textContent = label ? `${pair} — ${label}` : pair;
+          return option;
+        }));
+      }
+      if (activePair && options.some((option) => option.pair === activePair)) dropdown.value = activePair;
+      marketList.hidden = true;
+    };
+
+    const updatePage = () => {
       const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
       let node: Node | null;
       while ((node = walker.nextNode())) {
@@ -17,10 +60,11 @@ export const TradePage = () => {
           node.textContent = node.textContent.replace(/simulated\s*/gi, '');
         }
       }
+      syncMarketDropdown();
     };
 
-    removeLabel();
-    const observer = new MutationObserver(removeLabel);
+    updatePage();
+    const observer = new MutationObserver(updatePage);
     observer.observe(container, { childList: true, characterData: true, subtree: true });
     return () => observer.disconnect();
   }, []);
