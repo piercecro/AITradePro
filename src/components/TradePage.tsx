@@ -10,9 +10,12 @@ export const TradePage = () => {
     if (!container) return;
 
     const syncMarketDropdown = () => {
-      const marketCard = container.querySelector('aside > div');
+      const page = container.firstElementChild;
+      const categoryTabs = page?.firstElementChild;
+      const aside = page?.querySelector('aside');
+      const marketCard = aside?.firstElementChild;
       const marketList = marketCard?.querySelector(':scope > .space-y-2');
-      if (!(marketCard instanceof HTMLElement) || !(marketList instanceof HTMLElement)) return;
+      if (!(categoryTabs instanceof HTMLElement) || !(marketCard instanceof HTMLElement) || !(marketList instanceof HTMLElement)) return;
 
       const marketButtons = Array.from(marketList.querySelectorAll('button'));
       if (!marketButtons.length) return;
@@ -20,20 +23,17 @@ export const TradePage = () => {
       const activePair = marketButtons.find((button) => button.className.includes('border-blue-500'))
         ?.querySelector('div > div')?.textContent?.trim();
 
-      let dropdown = marketCard.querySelector<HTMLSelectElement>('[data-trade-market-dropdown]');
+      let dropdown = page.querySelector<HTMLSelectElement>('[data-trade-market-dropdown]');
       if (!dropdown) {
         dropdown = document.createElement('select');
         dropdown.dataset.tradeMarketDropdown = 'true';
         dropdown.setAttribute('aria-label', 'Select a market pair');
         dropdown.className = 'mb-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500';
         dropdown.addEventListener('change', () => {
-          const selectedButton = Array.from(marketList.querySelectorAll('button')).find((button) => {
-            const buttonPair = button.querySelector('div > div')?.textContent?.trim();
-            return buttonPair === dropdown?.value;
-          });
+          const currentButtons = Array.from(marketList.querySelectorAll('button'));
+          const selectedButton = currentButtons.find((button) => button.querySelector('div > div')?.textContent?.trim() === dropdown?.value);
           selectedButton?.click();
         });
-        marketList.parentElement?.insertBefore(dropdown, marketList);
       }
 
       const options = marketButtons
@@ -43,10 +43,10 @@ export const TradePage = () => {
           return pair ? { pair, label: label ?? '' } : null;
         })
         .filter((option): option is { pair: string; label: string } => option !== null);
+      const values = options.map(({ pair }) => pair);
+      const existingValues = Array.from(dropdown.options).map((option) => option.value);
 
-      const optionValues = options.map(({ pair }) => pair);
-      const currentValues = Array.from(dropdown.options).map((option) => option.value);
-      if (currentValues.length !== optionValues.length || optionValues.some((value, index) => value !== currentValues[index])) {
+      if (existingValues.length !== values.length || values.some((value, index) => value !== existingValues[index])) {
         dropdown.replaceChildren(...options.map(({ pair, label }) => {
           const option = document.createElement('option');
           option.value = pair;
@@ -55,10 +55,11 @@ export const TradePage = () => {
         }));
       }
 
-      if (activePair && optionValues.includes(activePair)) {
-        dropdown.value = activePair;
+      if (activePair && values.includes(activePair)) dropdown.value = activePair;
+      if (dropdown.parentElement !== categoryTabs.parentElement) {
+        categoryTabs.insertAdjacentElement('afterend', dropdown);
       }
-      marketList.hidden = true;
+      marketCard.hidden = true;
       dropdown.hidden = false;
     };
 
