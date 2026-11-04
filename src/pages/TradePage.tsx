@@ -312,10 +312,10 @@ export const TradePage = () => {
           <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-bold text-slate-800">{selectedSymbol} price movement</h2><p className="text-sm text-slate-500">{currentInstrument.label} · updates every 5 seconds</p></div>
-              <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length} open {selectedOpenTrades.length === 1 ? 'position' : 'positions'}</div></div>
+              <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length > 0 ? `${selectedOpenTrades.length} active position${selectedOpenTrades.length > 1 ? 's' : ''}` : 'No active position'}</div></div>
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#f7f9fc] p-3">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} candlestick chart with open trade entry markers`}>
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} candlestick chart with open trade entry lines`}>
                 {[0.25, 0.5, 0.75].map((fraction) => (
                   <line
                     key={fraction}
@@ -362,18 +362,22 @@ export const TradePage = () => {
                   );
                 })}
               </svg>
-              <div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Waiting for price'}</span></div>
+              <div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Now'}</span></div>
             </div>
             {selectedOpenTrades.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedOpenTrades.map((trade) => {
               const pnl = getPnl(trade, currentPrice);
-              return <span key={trade.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${pnl >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{trade.trade_type.toUpperCase()} {trade.trading_pair} {formatCurrency(pnl)}</span>;
+              return <span key={trade.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${pnl >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{trade.trade_type.toUpperCase()} entry {formatCurrency(trade.entry_price)}</span>;
             })}</div>}
           </section>
 
           <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
-            <div className="mb-4 flex items-center justify-between"><div><h2 className="font-bold text-slate-800">Order ticket</h2><p className="text-sm text-slate-500">{currentInstrument.category} · {currentInstrument.description}</p></div><div className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{selectedSide}</div></div>
+            <div className="mb-4 flex items-center justify-between"><div><h2 className="font-bold text-slate-800">Order ticket</h2><p className="text-sm text-slate-500">{currentInstrument.category} · {currentInstrument.description}</p></div><div className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">{selectedSymbol}</div></div>
             <div className="mb-4 grid grid-cols-2 gap-2">
-              {(['Buy', 'Sell'] as const).map((side) => <button key={side} type="button" onClick={() => setSelectedSide(side)} className={`rounded-xl px-4 py-3 font-bold ${selectedSide === side ? (side === 'Buy' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-slate-100 text-slate-700'}`} />)}
+              {(['Buy', 'Sell'] as const).map((side) => (
+                <button key={side} type="button" onClick={() => setSelectedSide(side)} className={`rounded-xl px-4 py-3 font-bold ${selectedSide === side ? (side === 'Buy' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-slate-100 text-slate-700'}`}>
+                  {side}
+                </button>
+              ))}
             </div>
             <div className="mb-4 grid grid-cols-2 gap-2">{orderOptions.map((option) => <button key={option} type="button" onClick={() => { setOrderType(option); if (option !== 'market' && triggerPrice === 0) setTriggerPrice(currentPrice); }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${orderType === option ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>{orderLabel(option)}</button>)}</div>
             <div className="space-y-3 text-sm">
@@ -389,20 +393,20 @@ export const TradePage = () => {
 
         <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex gap-2">{(['Open', 'Closed'] as const).map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>{tab}</button>)}</div>
-            <div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search symbols" className="rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none" /></div>
+            <div className="flex gap-2">{(['Open', 'Closed'] as const).map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>{tab}</button>)}</div>
+            <div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search symbols" className="w-52 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-300" /></div>
           </div>
           <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5">{filteredInstruments.map((instrument) => {
             const price = marketPrices[instrument.symbol] ?? instrument.price;
             const up = price >= instrument.price;
-            return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white'}`}><div><div className="font-semibold text-slate-800">{instrument.symbol}</div><div className="text-xs text-slate-500">{instrument.label}</div></div><div className={`text-xs font-semibold ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{formatPrice(price, instrument.symbol)}</div></button>;
+            return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-slate-300 bg-slate-50' : 'border-slate-200 bg-white'}`}><div><div className="font-semibold text-slate-800">{instrument.symbol}</div><div className="text-xs text-slate-500">{instrument.label}</div></div><div className="text-right"><div className={`font-semibold ${up ? 'text-emerald-600' : 'text-rose-600'}`}>{formatPrice(price, instrument.symbol)}</div><div className="text-[11px] text-slate-500">{up ? 'Up' : 'Down'}</div></div></button>;
           })}</div>
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'P/L', 'Status', 'Action'].map((column) => <th key={column} className="px-3 py-3 font-medium">{column}</th>)}</tr></thead>
-              <tbody>{visibleTrades.length === 0 ? <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No {activeTab.toLowerCase()} trades found.</td></tr> : visibleTrades.map((trade) => {
+            <table className="min-w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'P/L', 'Status'].map((header) => <th key={header} className="px-3 py-3 font-semibold">{header}</th>)}</tr></thead>
+              <tbody>{visibleTrades.length === 0 ? <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">No {activeTab.toLowerCase()} trades found.</td></tr> : visibleTrades.map((trade) => {
                 const price = marketPrices[trade.trading_pair] ?? trade.entry_price;
                 const pnl = trade.status === 'active' ? getPnl(trade, price) : trade.profit_loss;
-                return <tr key={trade.id} className="border-t border-slate-100"><td className="px-3 py-3 font-semibold">{trade.trading_pair}</td><td className={`px-3 py-3 font-semibold ${trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{trade.trade_type.toUpperCase()}</td><td className="px-3 py-3">{trade.amount}</td><td className="px-3 py-3">{formatCurrency(trade.entry_price)}</td><td className="px-3 py-3">{orderLabel(trade.order_type ?? 'market')}</td><td className="px-3 py-3">{formatDate(trade.opened_at)}</td><td className={`px-3 py-3 font-semibold ${pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(pnl)}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${trade.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{trade.status}</span></td><td className="px-3 py-3"><button type="button" onClick={() => handleCloseTrade(trade.id)} disabled={trade.status !== 'active' || isClosingTradeId === trade.id} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{isClosingTradeId === trade.id ? 'Closing...' : 'Close'}</button></td></tr>;
+                return <tr key={trade.id} className="border-t border-slate-100"><td className="px-3 py-3 font-semibold">{trade.trading_pair}</td><td className={`px-3 py-3 font-semibold ${trade.trade_type === 'buy' ? 'text-emerald-700' : 'text-rose-700'}`}>{trade.trade_type === 'buy' ? 'Buy' : 'Sell'}</td><td className="px-3 py-3">{trade.amount}</td><td className="px-3 py-3">{formatCurrency(trade.entry_price)}</td><td className="px-3 py-3">{orderLabel(trade.order_type ?? 'market')}</td><td className="px-3 py-3">{formatDate(trade.opened_at)}</td><td className={`px-3 py-3 font-semibold ${pnl >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{formatCurrency(pnl)}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${trade.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{trade.status === 'active' ? 'Open' : 'Closed'}</span></td></tr>;
               })}</tbody>
             </table>
           </div>
