@@ -10,60 +10,15 @@ interface CandleData {
 }
 
 type MarketPair =
-  | 'BTC/USD'
-  | 'ETH/USD'
-  | 'SOL/USD'
-  | 'BNB/USD'
-  | 'XRP/USD'
-  | 'ADA/USD'
-  | 'DOGE/USD'
-  | 'AVAX/USD'
-  | 'LINK/USD'
-  | 'MATIC/USD'
-  | 'DOT/USD'
-  | 'TRX/USD'
-  | 'NEAR/USD'
-  | 'ATOM/USD'
-  | 'LTC/USD'
-  | 'BCH/USD'
-  | 'UNI/USD'
-  | 'APT/USD'
-  | 'ARB/USD'
-  | 'OP/USD'
-  | 'SUI/USD'
-  | 'FIL/USD'
-  | 'ALGO/USD'
-  | 'EOS/USD'
-  | 'TAO/USD'
-  | 'WIF/USD'
-  | 'PEPE/USD'
-  | 'BONK/USD'
-  | 'RNDR/USD'
-  | 'ICP/USD'
-  | 'FTM/USD'
-  | 'THETA/USD'
-  | 'XTZ/USD'
-  | 'VET/USD'
-  | 'INJ/USD'
-  | 'GRT/USD'
-  | 'HBAR/USD'
-  | 'KAS/USD'
-  | 'FET/USD'
-  | 'AAVE/USD'
-  | 'SAND/USD'
-  | 'MANA/USD'
-  | 'CHZ/USD'
-  | 'IMX/USD'
-  | 'FLOW/USD'
-  | 'EGLD/USD'
-  | 'DYDX/USD'
-  | 'ZIL/USD'
-  | 'MASK/USD'
-  | 'ENJ/USD'
-  | 'EUR/USD'
-  | 'GBP/USD'
-  | 'USD/JPY'
-  | 'AUD/USD'
+  | 'BTC/USD' | 'ETH/USD' | 'SOL/USD' | 'BNB/USD' | 'XRP/USD' | 'ADA/USD'
+  | 'DOGE/USD' | 'AVAX/USD' | 'LINK/USD' | 'MATIC/USD' | 'DOT/USD' | 'TRX/USD'
+  | 'NEAR/USD' | 'ATOM/USD' | 'LTC/USD' | 'BCH/USD' | 'UNI/USD' | 'APT/USD'
+  | 'ARB/USD' | 'OP/USD' | 'SUI/USD' | 'FIL/USD' | 'ALGO/USD' | 'EOS/USD'
+  | 'TAO/USD' | 'WIF/USD' | 'PEPE/USD' | 'BONK/USD' | 'RNDR/USD' | 'ICP/USD'
+  | 'FTM/USD' | 'THETA/USD' | 'XTZ/USD' | 'VET/USD' | 'INJ/USD' | 'GRT/USD'
+  | 'HBAR/USD' | 'KAS/USD' | 'FET/USD' | 'AAVE/USD' | 'SAND/USD' | 'MANA/USD'
+  | 'CHZ/USD' | 'IMX/USD' | 'FLOW/USD' | 'EGLD/USD' | 'DYDX/USD' | 'ZIL/USD'
+  | 'MASK/USD' | 'ENJ/USD' | 'EUR/USD' | 'GBP/USD' | 'USD/JPY' | 'AUD/USD'
   | 'XAU/USD';
 
 type Timeframe = '7D' | '30D' | '90D';
@@ -134,8 +89,6 @@ const FX_PAIRS = [
 
 const MARKET_PAIRS = [...DEFAULT_CRYPTO_PAIRS, ...FX_PAIRS] as const;
 
-type MarketPair = typeof MARKET_PAIRS[number]['key'];
-
 const RANGE_OPTIONS: Timeframe[] = ['7D', '30D', '90D'];
 const TOOL_OPTIONS: TradingTool[] = ['Crosshair', 'Trend', 'Indicators', 'Measure'];
 const CHART_MODES: ChartMode[] = ['Candles', 'Line'];
@@ -146,7 +99,7 @@ const WATCHLIST = DEFAULT_CRYPTO_PAIRS.slice(0, 20).map((item) => ({
   pair: item.key,
   name: item.name,
   description: item.description,
-  change: (Math.random() * 10 - 5),
+  change: Math.random() * 10 - 5,
 }));
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -225,7 +178,7 @@ const buildFallbackData = (pair: MarketPair, days: number): CandleData[] => {
   let prev = base.open;
 
   for (let i = 0; i < days; i++) {
-    const drift = (Math.sin((i + 1) * 0.9) * 0.012) + (i - days / 2) * 0.002;
+    const drift = Math.sin((i + 1) * 0.9) * 0.012 + (i - days / 2) * 0.002;
     const open = prev;
     const close = open * (1 + drift);
     const high = Math.max(open, close) * (1 + 0.01 + i * 0.001);
@@ -251,31 +204,20 @@ const buildFallbackData = (pair: MarketPair, days: number): CandleData[] => {
 const fetchCryptoCandleData = async (pair: MarketPair, days: number) => {
   const config = MARKET_PAIRS.find((item) => item.key === pair) as typeof MARKET_PAIRS[number] | undefined;
   const metadata = DEFAULT_CRYPTO_PAIRS.find((item) => item.key === pair);
-  if (!config || !metadata?.id) {
-    return buildFallbackData(pair, days);
-  }
+  if (!config || !metadata?.id) return buildFallbackData(pair, days);
 
   try {
     const response = await fetch(
       `https://api.coingecko.com/api/v3/coins/${metadata.id}/ohlc?vs_currency=${metadata.quote}&days=${days}`,
     );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch market data');
-    }
+    if (!response.ok) throw new Error('Failed to fetch market data');
 
     const raw = await response.json();
     const values = Array.isArray(raw) ? raw.slice(-days) : [];
-
-    if (!values.length) {
-      return buildFallbackData(pair, days);
-    }
+    if (!values.length) return buildFallbackData(pair, days);
 
     return values.map(([timestamp, open, high, low, close]) => ({
-      date: new Date(timestamp).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       open: Number(open),
       high: Number(high),
       low: Number(low),
@@ -289,9 +231,7 @@ const fetchCryptoCandleData = async (pair: MarketPair, days: number) => {
 
 const fetchFxCandleData = async (pair: MarketPair, days: number) => {
   const config = MARKET_PAIRS.find((item) => item.key === pair) as typeof MARKET_PAIRS[number] | undefined;
-  if (!config || !('from' in config) || !('to' in config)) {
-    return buildFallbackData(pair, days);
-  }
+  if (!config || !('from' in config) || !('to' in config)) return buildFallbackData(pair, days);
 
   try {
     const end = new Date();
@@ -303,17 +243,11 @@ const fetchFxCandleData = async (pair: MarketPair, days: number) => {
     const response = await fetch(
       `https://api.frankfurter.app/${startStr}..${endStr}?from=${config.from}&to=${config.to}`,
     );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch FX data');
-    }
+    if (!response.ok) throw new Error('Failed to fetch FX data');
 
     const json = await response.json();
     const entries = Object.entries(json.rates || {}).slice(-days);
-
-    if (!entries.length) {
-      return buildFallbackData(pair, days);
-    }
+    if (!entries.length) return buildFallbackData(pair, days);
 
     let previous = Number(entries[0][1][config.to]);
 
@@ -324,14 +258,10 @@ const fetchFxCandleData = async (pair: MarketPair, days: number) => {
       const drift = clamp(Math.abs(close - open) * 0.7, 0.0004, 0.02);
       const high = Math.max(open, close) * (1 + drift);
       const low = Math.min(open, close) * (1 - drift);
-
       previous = close;
 
       return {
-        date: new Date(dateString).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        }),
+        date: new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         open: Number(open.toFixed(6)),
         high: Number(high.toFixed(6)),
         low: Number(low.toFixed(6)),
@@ -359,7 +289,6 @@ const fetchPairData = async (pair: MarketPair, days: number): Promise<CandleData
   if (DEFAULT_CRYPTO_PAIRS.some((item) => item.key === pair)) {
     return fetchCryptoCandleData(pair, days);
   }
-
   return fetchFxCandleData(pair, days);
 };
 
@@ -380,7 +309,6 @@ const CandleChart = ({
   chartMode: ChartMode;
   indicatorMode: IndicatorMode;
 }) => {
-  // Fill the card: measure the container instead of using a fixed 960px canvas.
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(960);
 
@@ -399,11 +327,15 @@ const CandleChart = ({
 
   const height = 520;
   const padding = 36;
-  const maxPrice = Math.max(...data.map((d) => d.high));
-  const minPrice = Math.min(...data.map((d) => d.low));
+  const dataMaxPrice = Math.max(...data.map((d) => d.high));
+  const dataMinPrice = Math.min(...data.map((d) => d.low));
+  const dataRange = dataMaxPrice - dataMinPrice || 1;
+  const scalePadding = dataRange * 0.08;
+  const maxPrice = dataMaxPrice + scalePadding;
+  const minPrice = dataMinPrice - scalePadding;
   const priceRange = maxPrice - minPrice || 1;
   const step = (width - padding * 2) / Math.max(data.length, 1);
-  const candleWidth = clamp(step * 0.62, 6, 18);
+  const candleWidth = Math.max(1, Math.min(step * 0.72, 18, step - 1));
 
   const closePath = data
     .map((point, index) => {
@@ -425,7 +357,8 @@ const CandleChart = ({
 
   const averageLine = data.map((point, index) => {
     const x = padding + index * step + step / 2;
-    const avg = data.slice(Math.max(0, index - 5), index + 1).reduce((sum, val) => sum + val.close, 0) / Math.max(1, Math.min(6, index + 1));
+    const avg = data.slice(Math.max(0, index - 5), index + 1).reduce((sum, val) => sum + val.close, 0)
+      / Math.max(1, Math.min(6, index + 1));
     const y = padding + ((maxPrice - avg) / priceRange) * (height - padding * 2);
     return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
   }).join(' ');
@@ -457,7 +390,6 @@ const CandleChart = ({
           <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.4} strokeLinejoin="round" strokeLinecap="round" />
         ) : (
           <>
-            <path d={closePath} fill="none" stroke="#60a5fa" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
             {data.map((point, index) => {
               const x = padding + index * step + step / 2;
               const yOpen = padding + ((maxPrice - point.open) / priceRange) * (height - padding * 2);
@@ -466,13 +398,32 @@ const CandleChart = ({
               const yLow = padding + ((maxPrice - point.low) / priceRange) * (height - padding * 2);
               const isUp = point.close >= point.open;
               const color = isUp ? '#22c55e' : '#ef4444';
+              const outlineColor = isUp ? '#16a34a' : '#dc2626';
               const bodyY = Math.min(yOpen, yClose);
-              const bodyHeight = Math.max(Math.abs(yClose - yOpen), 4);
+              const bodyHeight = Math.max(Math.abs(yClose - yOpen), 2);
 
               return (
                 <g key={`${point.date}-${index}`}>
-                  <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.5} strokeLinecap="round" opacity={0.9} />
-                  <rect x={x - candleWidth / 2} y={bodyY} width={candleWidth} height={bodyHeight} rx={3} fill={color} opacity={0.8} />
+                  <line
+                    x1={x}
+                    x2={x}
+                    y1={yHigh}
+                    y2={yLow}
+                    stroke={outlineColor}
+                    strokeWidth={Math.max(1, Math.min(1.5, candleWidth * 0.18))}
+                    strokeLinecap="butt"
+                  />
+                  <rect
+                    x={x - candleWidth / 2}
+                    y={bodyY}
+                    width={candleWidth}
+                    height={bodyHeight}
+                    rx={1}
+                    fill={color}
+                    stroke={outlineColor}
+                    strokeWidth={0.75}
+                    opacity={0.95}
+                  />
                 </g>
               );
             })}
@@ -527,17 +478,12 @@ export const CryptoChart = () => {
           setHoverIndex(null);
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
     loadData();
-
-    const interval = window.setInterval(() => {
-      loadData();
-    }, REFRESH_MS);
+    const interval = window.setInterval(loadData, REFRESH_MS);
 
     return () => {
       isMounted = false;
