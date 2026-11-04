@@ -17,6 +17,9 @@ export const TradePage = () => {
       const marketButtons = Array.from(marketList.querySelectorAll('button'));
       if (!marketButtons.length) return;
 
+      const activePair = marketButtons.find((button) => button.className.includes('border-blue-500'))
+        ?.querySelector('div > div')?.textContent?.trim();
+
       let dropdown = marketCard.querySelector<HTMLSelectElement>('[data-trade-market-dropdown]');
       if (!dropdown) {
         dropdown = document.createElement('select');
@@ -25,22 +28,25 @@ export const TradePage = () => {
         dropdown.className = 'mb-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500';
         dropdown.addEventListener('change', () => {
           const selectedButton = Array.from(marketList.querySelectorAll('button')).find((button) => {
-            return button.querySelector('div > div')?.textContent?.trim() === dropdown?.value;
+            const buttonPair = button.querySelector('div > div')?.textContent?.trim();
+            return buttonPair === dropdown?.value;
           });
           selectedButton?.click();
         });
         marketList.parentElement?.insertBefore(dropdown, marketList);
       }
 
-      const options = marketButtons.map((button) => {
-        const pair = button.querySelector('div > div')?.textContent?.trim();
-        const label = button.querySelector('div > div + div')?.textContent?.trim();
-        return pair ? { pair, label: label ?? '' } : null;
-      }).filter((option): option is { pair: string; label: string } => option !== null);
-      const activePair = marketButtons.find((button) => button.className.includes('border-blue-500'))
-        ?.querySelector('div > div')?.textContent?.trim();
+      const options = marketButtons
+        .map((button) => {
+          const pair = button.querySelector('div > div')?.textContent?.trim();
+          const label = button.querySelector('div > div + div')?.textContent?.trim();
+          return pair ? { pair, label: label ?? '' } : null;
+        })
+        .filter((option): option is { pair: string; label: string } => option !== null);
 
-      if (dropdown.options.length !== options.length || options.some((option, index) => dropdown?.options[index]?.value !== option.pair)) {
+      const optionValues = options.map(({ pair }) => pair);
+      const currentValues = Array.from(dropdown.options).map((option) => option.value);
+      if (currentValues.length !== optionValues.length || optionValues.some((value, index) => value !== currentValues[index])) {
         dropdown.replaceChildren(...options.map(({ pair, label }) => {
           const option = document.createElement('option');
           option.value = pair;
@@ -48,8 +54,12 @@ export const TradePage = () => {
           return option;
         }));
       }
-      if (activePair && options.some((option) => option.pair === activePair)) dropdown.value = activePair;
+
+      if (activePair && optionValues.includes(activePair)) {
+        dropdown.value = activePair;
+      }
       marketList.hidden = true;
+      dropdown.hidden = false;
     };
 
     const updatePage = () => {
