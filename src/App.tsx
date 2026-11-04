@@ -79,7 +79,6 @@ const AppContent = () => {
         setIsAdmin(false);
       }
     };
-
     void checkAdmin();
   }, [user]);
 
@@ -110,13 +109,12 @@ const AppContent = () => {
       case 'dashboard':
         return <DashboardPage mode="dashboard" />;
       case 'live-trading':
-        return <DashboardPage mode="live-trading" />;
+      case 'trade':
+        return <TradePage />;
       case 'demo':
         return <DashboardPage mode="demo" />;
       case 'balance':
         return <BalancePage onNavigate={setCurrentPage} />;
-      case 'trade':
-        return <TradePage />;
       case 'my-bot':
         return <MyBotsPage />;
       case 'watchlist':
