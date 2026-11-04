@@ -2,17 +2,25 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Bell,
+  BriefcaseBusiness,
   CandlestickChart,
   ChevronDown,
+  ChartNoAxesCombined,
   Crosshair,
+  Gauge,
+  LayoutGrid,
+  MessageSquareText,
+  Minus,
   MoveHorizontal,
   MousePointer2,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
   SlidersHorizontal,
   Star,
   TrendingUp,
+  Wallet,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -73,7 +81,7 @@ const marketInstruments: Instrument[] = [
   { symbol: 'NASDAQ', label: 'NASDAQ 100', category: 'Index', description: 'Tech index', price: 19742.3 },
   { symbol: 'SPX', label: 'S&P 500', category: 'Index', description: 'US broad index', price: 5562.1 },
   { symbol: 'DAX', label: 'DAX', category: 'Index', description: 'German index', price: 19124.3 },
-  { symbol: 'FTSE', label: 'FTSE 100', category: 'Index', description: 'UK index', price: 19124.3 },
+  { symbol: 'FTSE', label: 'FTSE 100', category: 'Index', description: 'UK index', price: 8271.9 },
   { symbol: 'VIX', label: 'VIX', category: 'Index', description: 'Volatility index', price: 17.8 },
 ];
 
@@ -197,9 +205,12 @@ export const TradePage = () => {
         const latestPrice = next[selectedSymbol] ?? currentInstrument.price;
         setPriceHistory((history) => {
           const last = history[history.length - 1];
-          const point = makeCandle(last?.close ?? latestPrice, latestPrice,
+          const point = makeCandle(
+            last?.close ?? latestPrice,
+            latestPrice,
             new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            live[selectedSymbol]?.price ? 'live' : 'simulated');
+            live[selectedSymbol]?.price ? 'live' : 'simulated',
+          );
           return [...history, point].slice(-320);
         });
         return next;
@@ -338,112 +349,305 @@ export const TradePage = () => {
     <div className="min-h-screen bg-[#edf3f8] p-3 lg:p-5">
       <div className="mx-auto max-w-[1540px] space-y-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
-          <div className="overflow-hidden rounded-[18px] border border-[#dfe7f0] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center justify-between border-b border-[#e5ebf2] bg-[#fbfcfe] px-3 py-2">
+          <div className="overflow-hidden rounded-[18px] border border-[#dfe7f0] bg-[#f4f7fb] shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-between border-b border-[#dfe7f0] bg-[#f8fafc] px-3 py-2">
               <div className="flex items-center gap-2">
-                <button aria-label="Previous chart" className="rounded-md border border-[#dfe7f0] bg-white p-2 text-slate-600"><MoveHorizontal size={14} /></button>
-                <div className="flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white px-2 py-1.5 text-xs font-semibold text-slate-700">{selectedSymbol}<ChevronDown size={12} /></div>
-                <button aria-label="Add instrument" className="rounded-full border border-[#dfe7f0] bg-white p-1.5 text-slate-600"><Plus size={14} /></button>
+                <button className="flex h-8 w-8 items-center justify-center rounded-md border border-[#dfe7f0] bg-white text-slate-600"><Minus size={12} /></button>
+                <button className="flex h-8 w-8 items-center justify-center rounded-md border border-[#dfe7f0] bg-white text-slate-600"><Plus size={12} /></button>
+                <div className="flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700">UK100<ChevronDown size={12} className="text-slate-500" /></div>
               </div>
-              <div className="hidden items-center gap-1 md:flex">{timeframes.map((timeframe) => <button key={timeframe} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${timeframe === '1D' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}>{timeframe}</button>)}</div>
-              <div className="flex items-center gap-2 text-slate-500">
-                <button aria-label="Indicators" className="rounded-md p-2 hover:bg-slate-100"><Activity size={15} /></button>
-                <button aria-label="Chart settings" className="rounded-md p-2 hover:bg-slate-100"><Settings size={15} /></button>
-                <button className="rounded-md border border-[#1d73f5] px-2.5 py-1.5 text-xs font-semibold text-[#1d73f5]">Analyse chart</button>
+
+              <div className="hidden items-center gap-2 md:flex">
+                {timeframes.map((timeframe) => (
+                  <button
+                    key={timeframe}
+                    type="button"
+                    className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${timeframe === '1D' ? 'bg-[#eaf2ff] text-[#1d73f5]' : 'text-slate-500 hover:bg-white'}`}
+                  >
+                    {timeframe}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button className="rounded-md border border-[#dfe7f0] bg-white p-2 text-slate-500"><SlidersHorizontal size={14} /></button>
+                <button className="rounded-md border border-[#dfe7f0] bg-white p-2 text-slate-500"><CandlestickChart size={14} /></button>
+                <button className="rounded-md border border-[#dfe7f0] bg-white p-2 text-slate-500"><Activity size={14} /></button>
+                <button className="rounded-md border border-[#dfe7f0] bg-white p-2 text-slate-500"><Settings size={14} /></button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e5ebf2] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#eef5ff] text-[#1d73f5]"><TrendingUp size={17} /></div>
-                <div><div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{currentInstrument.label}</div><div className="text-lg font-bold text-slate-800">{selectedSymbol} <span className="ml-1 text-sm font-medium text-slate-500">{formatPrice(currentPrice, selectedSymbol)}</span></div></div>
+            <div className="flex items-center justify-between border-b border-[#dfe7f0] bg-[#f8fafc] px-3 py-2 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <button type="button" className="inline-flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white px-2 py-1 font-medium text-slate-600"><Crosshair size={12} />Indicators</button>
+                <button type="button" className="inline-flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white px-2 py-1 font-medium text-slate-600"><MousePointer2 size={12} />Compare</button>
+                <button type="button" className="inline-flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white px-2 py-1 font-medium text-slate-600"><MoveHorizontal size={12} />Draw</button>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
+
+              <div className="flex items-center gap-2">
+                <button type="button" className="inline-flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-[#eaf2ff] px-2 py-1 font-semibold text-[#1d73f5]"><CandlestickChart size={12} />Analyse chart</button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 px-3 py-3">
+              <div className="flex items-center gap-2">
+                <div className="rounded-md bg-[#f0f7ff] p-2 text-[#1d73f5]"><TrendingUp size={14} /></div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">FTSE 100</div>
+                  <div className="text-lg font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-slate-500">
                 <span>O: {formatPrice(hoveredCandle?.open ?? currentPrice, selectedSymbol)}</span>
                 <span>H: {formatPrice(hoveredCandle?.high ?? currentPrice, selectedSymbol)}</span>
                 <span>L: {formatPrice(hoveredCandle?.low ?? currentPrice, selectedSymbol)}</span>
                 <span>C: {formatPrice(hoveredCandle?.close ?? currentPrice, selectedSymbol)}</span>
-                <span className={`rounded px-1.5 py-0.5 font-semibold ${chartSource === 'Live API' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{chartSource}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-b border-[#eef2f6] px-4 py-2 text-[11px] text-slate-500">
-              <div className="flex items-center gap-2"><button className="rounded border border-[#dfe7f0] px-2 py-1">Indicators</button><button className="rounded border border-[#dfe7f0] px-2 py-1">Compare</button><button className="rounded border border-[#dfe7f0] px-2 py-1">Drawing tools</button></div>
-              <div className="hidden items-center gap-2 sm:flex"><span>Zoom</span><button aria-label="Zoom in" onClick={() => setChartZoom((zoom) => clamp(zoom + 0.2, 1, 4))} className="rounded border border-[#dfe7f0] p-1 hover:bg-slate-50"><ZoomIn size={13} /></button><button aria-label="Zoom out" onClick={() => setChartZoom((zoom) => clamp(zoom - 0.2, 1, 4))} className="rounded border border-[#dfe7f0] p-1 hover:bg-slate-50"><ZoomOut size={13} /></button></div>
+            <div className="border-b border-[#dfe7f0] px-3 pb-2">
+              <div className="flex items-center gap-3 text-xs text-slate-500">
+                <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">+0.28%</span>
+                <span>Today</span>
+                <span>·</span>
+                <span>Volume 1.27M</span>
+              </div>
             </div>
 
-            <div ref={chartAreaRef} className={`relative h-[500px] touch-none overflow-hidden bg-white ${isDraggingChart ? 'cursor-grabbing' : 'cursor-crosshair'}`} onWheel={handleChartWheel} onPointerDown={handleChartPointerDown} onPointerMove={handleChartPointerMove} onPointerUp={endChartDrag} onPointerCancel={endChartDrag}>
+            <div
+              ref={chartAreaRef}
+              className="relative h-[560px] overflow-hidden bg-[#f9fbff]"
+              onWheel={handleChartWheel}
+              onPointerDown={handleChartPointerDown}
+              onPointerMove={handleChartPointerMove}
+              onPointerUp={endChartDrag}
+              onPointerLeave={endChartDrag}
+            >
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-full w-full">
+                <defs>
+                  <linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+
                 {Array.from({ length: 6 }, (_, index) => {
                   const y = chartPadding.top + (index / 5) * (chartHeight - chartPadding.top - chartPadding.bottom);
-                  return <line key={`h-${index}`} x1={chartPadding.left} x2={chartWidth - chartPadding.right} y1={y} y2={y} stroke="#e9eff6" />;
+                  return (
+                    <line
+                      key={`grid-${y}`}
+                      x1={chartPadding.left}
+                      x2={chartWidth - chartPadding.right}
+                      y1={y}
+                      y2={y}
+                      stroke="#dfe7f0"
+                      strokeDasharray="3 7"
+                    />
+                  );
                 })}
+
                 {Array.from({ length: Math.max(visibleChartData.length, 1) }, (_, index) => {
                   const x = chartPadding.left + index * xStep;
-                  return <line key={`v-${index}`} x1={x} x2={x} y1={chartPadding.top} y2={chartHeight - chartPadding.bottom} stroke={index % 8 === 0 ? '#edf2f7' : '#f7f9fc'} />;
+                  return (
+                    <line
+                      key={`v-grid-${index}`}
+                      x1={x}
+                      x2={x}
+                      y1={chartPadding.top}
+                      y2={chartHeight - chartPadding.bottom}
+                      stroke={index % 8 === 0 ? '#edf2f7' : '#f4f7fb'}
+                    />
+                  );
                 })}
+
                 {visibleChartData.map((point, index) => {
                   const x = chartPadding.left + index * xStep + xStep / 2;
                   const open = point.open ?? point.price;
                   const close = point.close ?? point.price;
                   const high = point.high ?? Math.max(open, close);
                   const low = point.low ?? Math.min(open, close);
-                  const top = yScale(Math.max(open, close));
-                  const bottom = yScale(Math.min(open, close));
-                  const up = close >= open;
-                  const color = up ? '#16a34a' : '#ef4444';
-                  return <g key={`${point.time}-${index}`}><line x1={x} x2={x} y1={yScale(high)} y2={yScale(low)} stroke={color} strokeWidth={1.2} /><rect x={x - candleWidth / 2} y={top} width={candleWidth} height={Math.max(2, bottom - top)} rx={1} fill={up ? '#22c55e' : '#ef4444'} /></g>;
+                  const bodyTop = yScale(Math.max(open, close));
+                  const bodyBottom = yScale(Math.min(open, close));
+                  const isUp = close >= open;
+                  const color = isUp ? '#16a34a' : '#ef4444';
+
+                  return (
+                    <g key={`${point.time}-${index}`}>
+                      <line x1={x} x2={x} y1={yScale(high)} y2={yScale(low)} stroke={color} strokeWidth={1.2} />
+                      <rect x={x - candleWidth / 2} y={bodyTop} width={candleWidth} height={Math.max(2, bodyBottom - bodyTop)} rx={1.5} fill={isUp ? '#22c55e' : '#ef4444'} opacity={0.9} />
+                    </g>
+                  );
                 })}
+
                 {hoveredCandle && (() => {
-                  const index = visibleChartData.indexOf(hoveredCandle);
-                  const x = chartPadding.left + index * xStep + xStep / 2;
+                  const idx = visibleChartData.indexOf(hoveredCandle);
+                  const x = chartPadding.left + idx * xStep + xStep / 2;
                   const y = yScale(hoveredCandle.close ?? hoveredCandle.price);
-                  return <g><line x1={x} x2={x} y1={chartPadding.top} y2={chartHeight - chartPadding.bottom} stroke="#93c5fd" strokeDasharray="5 5" /><line x1={chartPadding.left} x2={chartWidth - chartPadding.right} y1={y} y2={y} stroke="#93c5fd" strokeDasharray="5 5" /></g>;
+                  return (
+                    <g>
+                      <line x1={x} x2={x} y1={chartPadding.top} y2={chartHeight - chartPadding.bottom} stroke="#93c5fd" strokeDasharray="6 6" />
+                      <line x1={chartPadding.left} x2={chartWidth - chartPadding.right} y1={y} y2={y} stroke="#93c5fd" strokeDasharray="6 6" />
+                    </g>
+                  );
                 })()}
               </svg>
-              <div className="pointer-events-none absolute left-3 top-2 rounded border border-blue-500/30 bg-slate-900/80 px-2 py-1 text-[10px] text-blue-100">{hoveredCandle ? `${hoveredCandle.time} · ${formatPrice(hoveredCandle.close ?? hoveredCandle.price, selectedSymbol)}` : 'Waiting for price data'}</div>
-              <div className="absolute bottom-3 left-3 rounded bg-white/90 px-2 py-1 text-[10px] text-slate-400">Drag to pan · Scroll to zoom</div>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-emerald-500 px-2 py-1 text-[10px] font-bold text-white">{formatPrice(currentPrice, selectedSymbol)}</div>
+
+              <div className="pointer-events-none absolute left-3 top-2 rounded-md border border-blue-500/40 bg-slate-900/80 px-2 py-1 text-[11px] text-blue-100 shadow-lg">
+                {hoveredCandle ? `${hoveredCandle.time}: ${formatPrice(hoveredCandle.close ?? hoveredCandle.price, selectedSymbol)}` : 'No price data'}
+              </div>
+
+              <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md border border-[#dfe7f0] bg-white/90 px-2 py-1 text-[10px] text-slate-500 backdrop-blur-sm">
+                <span>Zoom</span>
+                <button type="button" className="rounded bg-slate-100 p-1 text-slate-600" onClick={() => setChartZoom((value) => clamp(value + 0.2, 1, 4))}><ZoomIn size={12} /></button>
+                <button type="button" className="rounded bg-slate-100 p-1 text-slate-600" onClick={() => setChartZoom((value) => clamp(value - 0.2, 1, 4))}><ZoomOut size={12} /></button>
+                <button type="button" className="rounded bg-slate-100 p-1 text-slate-600" onClick={() => setChartPan(0)}><MoveHorizontal size={12} /></button>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-[#e5ebf2] bg-[#fbfcfe] px-4 py-2 text-[11px] text-slate-500"><div className="flex gap-4"><span>1D</span><span>1W</span><span>1M</span><span>3M</span><span>6M</span><span>YTD</span><span>1Y</span></div><span>Current time · {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+            <div className="flex items-center justify-between border-t border-[#dfe7f0] bg-[#f8fafc] px-3 py-2 text-xs text-slate-500">
+              <div className="flex items-center gap-4">
+                <span>1D</span>
+                <span>1W</span>
+                <span>1M</span>
+                <span>3M</span>
+                <span>6M</span>
+                <span>YTD</span>
+                <span>1Y</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span>Current time: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            </div>
           </div>
 
           <aside className="space-y-4">
             <div className="rounded-[18px] border border-[#dfe7f0] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="mb-4 flex items-center justify-between"><div className="text-sm font-bold text-slate-800">Watchlist</div><button className="rounded-full p-1 text-slate-400"><Star size={16} /></button></div>
-              <div className="mb-4 rounded-lg border border-[#dfe7f0] px-3 py-2 text-xs text-slate-400"><div className="flex items-center gap-2"><Search size={14} />Search symbols to add</div></div>
-              <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400"><span>Popular instruments</span><span>tap to chart</span></div>
-              <div className="divide-y divide-slate-100">
-                {[
-                  ['NSE 30', '9,398.93', '+0.13%'], ['NSE All Share', '254,662.18', '+0.15%'],
-                  ['US 30', '52,545.30', '+1.47%'], ['Brent Oil', '102.21', '-1.34%'],
-                  ['Crude Oil WTI', '95.10', '-1.03%'], ['Gold', '4,046.00', '+2.89%'],
-                ].map(([name, value, change]) => <button key={name} type="button" className="flex w-full items-center justify-between py-3 text-left"><div><div className="text-xs font-semibold text-slate-800">{name}</div><div className="text-[10px] text-slate-400">{name.split(' ')[0]}</div></div><div className="text-right"><div className="text-xs font-semibold text-slate-800">{value}</div><div className={`text-[10px] ${change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>{change}</div></div></button>)}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#ffe7a8] text-[#f59e0b]"><Star size={14} fill="currentColor" /></div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Watchlist</div>
+                    <div className="text-sm font-bold text-slate-800">Favourites</div>
+                  </div>
+                </div>
+                <button className="rounded-full border border-[#dfe7f0] bg-slate-50 p-2 text-slate-500"><Bell size={14} /></button>
               </div>
-              <button className="mt-3 w-full rounded-lg bg-orange-500 px-3 py-2.5 text-xs font-bold text-white hover:bg-orange-600">+ Sign up to save favourites</button>
+
+              <div className="mb-3 rounded-xl border border-[#dfe7f0] bg-[#f8fafc] px-3 py-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2"><Search size={14} className="text-slate-400" /><span>Search symbols to add</span></div>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  ['NSE 30', '9,398.93', '+0.13%'],
+                  ['NSE All Share', '254,662.18', '+0.15%'],
+                  ['US 30', '52,545.30', '+1.47%'],
+                  ['Brent Oil', '102.21', '-1.34%'],
+                  ['Crude Oil WTI', '95.10', '-1.03%'],
+                  ['Gold', '4,046.00', '+2.89%'],
+                ].map(([name, value, change]) => (
+                  <div key={name} className="flex items-center justify-between rounded-xl bg-[#f8fafc] px-3 py-2">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800">{name}</div>
+                      <div className="text-[10px] uppercase tracking-[0.14em] text-slate-400">{name.split(' ')[0]}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-slate-800">{value}</div>
+                      <div className={`text-[10px] font-semibold ${change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>{change}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-[18px] border border-[#dfe7f0] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-              <div className="mb-3 flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Order ticket</div><div className="text-lg font-bold text-slate-800">{selectedSymbol}</div></div><div className="text-right"><div className="text-[10px] text-slate-500">Price</div><div className="font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div></div></div>
-              <div className="mb-3 grid grid-cols-2 gap-2">{(['Buy', 'Sell'] as const).map((side) => <button key={side} type="button" onClick={() => setSelectedSide(side)} className={`rounded-lg py-2 text-sm font-bold text-white ${selectedSide === side ? (side === 'Buy' ? 'bg-green-600' : 'bg-red-600') : 'bg-slate-400'}`}>{side}</button>)}</div>
-              <div className="mb-3 grid grid-cols-2 gap-1.5">{orderOptions.map((option) => <button key={option} type="button" onClick={() => { setOrderType(option); if (option !== 'market' && !triggerPrice) setTriggerPrice(currentPrice); }} className={`rounded px-2 py-1.5 text-[10px] font-semibold ${orderType === option ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{orderLabel(option)}</button>)}</div>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5"><span className="text-slate-500">Live price</span><b>{formatPrice(currentPrice, selectedSymbol)}</b></div>
-                {orderType !== 'market' && <label className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5"><span className="text-slate-500">{orderLabel(orderType)} price</span><input aria-label="Trigger price" type="number" value={triggerPrice || ''} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-24 bg-transparent text-right outline-none" /></label>}
-                <label className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5"><span className="text-slate-500">Quantity</span><input aria-label="Trade quantity" type="number" min="0.01" step="0.01" value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-20 bg-transparent text-right outline-none" /></label>
-                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-2.5"><span className="text-slate-500">Estimated</span><b>{formatCurrency(getExecutionPrice() * tradeAmount)}</b></div>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Order ticket</div>
+                  <div className="text-lg font-bold text-slate-800">{selectedSymbol}</div>
+                </div>
+                <div className="text-[10px] text-slate-500">{chartSource}</div>
               </div>
-              {errorText && <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-700">{errorText}</p>}
-              <button type="button" onClick={handlePlaceTrade} disabled={isSubmitting} className={`mt-3 w-full rounded-lg py-2.5 text-sm font-bold text-white disabled:opacity-60 ${selectedSide === 'Buy' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`}>{isSubmitting ? 'Submitting…' : `${selectedSide} ${selectedSymbol}`}</button>
+
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                {(['Buy', 'Sell'] as const).map((side) => (
+                  <button key={side} type="button" onClick={() => setSelectedSide(side)} className={`rounded-xl px-4 py-3 font-bold ${selectedSide === side ? (side === 'Buy' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-slate-100 text-slate-700'}`}>
+                    {side}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                {orderOptions.map((option) => (
+                  <button key={option} type="button" onClick={() => { setOrderType(option); if (option !== 'market' && triggerPrice === 0) setTriggerPrice(currentPrice); }} className={`rounded-lg px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] ${orderType === option ? 'bg-[#1d73f5] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {orderLabel(option)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Live price</span><strong>{formatPrice(currentPrice, selectedSymbol)}</strong></div>
+                {(orderType !== 'market') && (
+                  <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">{orderLabel(orderType)} price</span><input aria-label="Trigger price" type="number" value={triggerPrice || ''} onChange={(event) => setTriggerPrice(Number(event.target.value) || 0)} className="w-24 bg-transparent text-right font-semibold text-slate-800 outline-none" /></div>
+                )}
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Quantity</span><input aria-label="Trade quantity" type="number" min={0.01} step={0.01} value={tradeAmount} onChange={(event) => setTradeAmount(Number(event.target.value) || 0.01)} className="w-20 bg-transparent text-right font-semibold text-slate-800 outline-none" /></div>
+                <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span className="text-slate-500">Reserve</span><strong>{formatCurrency(getExecutionPrice() * tradeAmount)}</strong></div>
+              </div>
+
+              {errorText && <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p>}
+              <button type="button" onClick={handlePlaceTrade} disabled={isSubmitting} className={`mt-4 w-full rounded-xl px-4 py-3 font-bold text-white disabled:opacity-60 ${selectedSide === 'Buy' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'}`}>
+                {isSubmitting ? 'Submitting…' : `${selectedSide} ${selectedSymbol}`}
+              </button>
             </div>
           </aside>
         </div>
 
         <section className="rounded-[18px] border border-[#dfe7f0] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2">{(['Open', 'Closed'] as const).map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{tab}</button>)}</div><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search instrument or trade" className="w-64 rounded-xl border border-[#dfe7f0] bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none" /></div></div>
-          <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5">{filteredInstruments.map((instrument) => { const price = marketPrices[instrument.symbol] ?? instrument.price; const isUp = price >= instrument.price; return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-slate-50'}`}><div><div className="font-bold text-slate-800">{instrument.symbol}</div><div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{instrument.category}</div></div><div className={`text-sm font-bold ${isUp ? 'text-emerald-600' : 'text-rose-600'}`}>{formatPrice(price, instrument.symbol)}</div></button>; })}</div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="min-w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'Value', 'PnL', 'Action'].map((label) => <th key={label} className="px-3 py-3 font-semibold">{label}</th>)}</tr></thead><tbody>{visibleTrades.length === 0 ? <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No {activeTab.toLowerCase()} trades found.</td></tr> : visibleTrades.map((trade) => { const price = marketPrices[trade.trading_pair] ?? trade.entry_price; const pnl = trade.status === 'active' ? getPnl(trade, price) : trade.profit_loss; return <tr key={trade.id} className="border-t border-slate-100"><td className="px-3 py-3 font-semibold">{trade.trading_pair}</td><td className={`px-3 py-3 font-semibold ${trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{trade.trade_type}</td><td className="px-3 py-3">{trade.amount}</td><td className="px-3 py-3">{formatCurrency(trade.entry_price)}</td><td className="px-3 py-3">{orderLabel(trade.order_type ?? 'market')}</td><td className="px-3 py-3">{formatDate(trade.opened_at)}</td><td className="px-3 py-3">{formatCurrency(price * trade.amount)}</td><td className={`px-3 py-3 font-semibold ${pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(pnl)}</td><td className="px-3 py-3">{trade.status === 'active' ? <button type="button" onClick={() => handleCloseTrade(trade.id)} disabled={isClosingTradeId === trade.id} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{isClosingTradeId === trade.id ? 'Closing…' : 'Close'}</button> : <span className="text-xs font-semibold uppercase text-slate-400">Closed</span>}</td></tr>; })}</tbody></table></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-2">{(['Open', 'Closed'] as const).map((tab) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>{tab}</button>)}</div>
+            <div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search instrument" className="w-64 rounded-xl border border-[#dfe7f0] bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none" /></div>
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-5">
+            {filteredInstruments.map((instrument) => {
+              const price = marketPrices[instrument.symbol] ?? instrument.price;
+              const isUp = price >= instrument.price;
+              return <button key={instrument.symbol} type="button" onClick={() => setSelectedSymbol(instrument.symbol)} className={`flex items-center justify-between rounded-xl border p-3 text-left ${selectedSymbol === instrument.symbol ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-slate-50'}`}><div><div className="font-bold text-slate-800">{instrument.symbol}</div><div className="text-[10px] uppercase tracking-[0.12em] text-slate-500">{instrument.category}</div></div><div className={`text-sm font-bold ${isUp ? 'text-emerald-600' : 'text-rose-600'}`}>{formatPrice(price, instrument.symbol)}</div></button>;
+            })}
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  {['Symbol', 'Side', 'Qty', 'Entry', 'Order', 'Opened', 'Value', 'PnL', 'Action'].map((label) => <th key={label} className="px-3 py-3 font-semibold">{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleTrades.length === 0 ? (
+                  <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-500">No {activeTab.toLowerCase()} trades found.</td></tr>
+                ) : visibleTrades.map((trade) => {
+                  const price = marketPrices[trade.trading_pair] ?? trade.entry_price;
+                  const pnl = trade.status === 'active' ? getPnl(trade, price) : trade.profit_loss;
+                  return (
+                    <tr key={trade.id} className="border-t border-slate-100">
+                      <td className="px-3 py-3 font-semibold">{trade.trading_pair}</td>
+                      <td className={`px-3 py-3 font-semibold ${trade.trade_type === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{trade.trade_type}</td>
+                      <td className="px-3 py-3">{trade.amount}</td>
+                      <td className="px-3 py-3">{formatCurrency(trade.entry_price)}</td>
+                      <td className="px-3 py-3">{orderLabel(trade.order_type ?? 'market')}</td>
+                      <td className="px-3 py-3">{formatDate(trade.opened_at)}</td>
+                      <td className="px-3 py-3">{formatCurrency(price * trade.amount)}</td>
+                      <td className={`px-3 py-3 font-semibold ${pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(pnl)}</td>
+                      <td className="px-3 py-3">{trade.status === 'active' ? <button type="button" onClick={() => handleCloseTrade(trade.id)} disabled={isClosingTradeId === trade.id} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{isClosingTradeId === trade.id ? 'Closing…' : 'Close'}</button> : <span className="text-xs font-semibold uppercase text-slate-400">Closed</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-500"><span>Equity: <b className="text-slate-700">{formatCurrency(accountEquity)}</b></span><span>Available cash: <b className="text-slate-700">{formatCurrency(availableBalance)}</b></span><span>Open P&amp;L: <b className={unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(unrealizedPnl)}</b></span><span>· Available cash excludes funds reserved for open positions.</span></div>
         </section>
       </div>
