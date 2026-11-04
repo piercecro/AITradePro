@@ -579,19 +579,21 @@ export const CryptoChart = () => {
         </div>
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {MARKET_PAIRS.map((pair) => (
-              <button
-                key={pair.key}
-                onClick={() => setSelectedPair(pair.key as MarketPair)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                  selectedPair === pair.key ? 'bg-cyan-600 text-white' : 'bg-[#1a1d29] text-gray-300 hover:bg-[#232734]'
-                }`}
-              >
-                {pair.key}
-              </button>
-            ))}
-          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-400">
+            Market
+            <select
+              value={selectedPair}
+              onChange={(event) => setSelectedPair(event.target.value as MarketPair)}
+              aria-label="Select market"
+              className="rounded-lg border border-gray-700 bg-[#1a1d29] px-3 py-2 text-sm text-white outline-none focus:border-cyan-500"
+            >
+              {MARKET_PAIRS.map((pair) => (
+                <option key={pair.key} value={pair.key}>
+                  {pair.key}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="flex flex-wrap items-center gap-2">
             {CHART_MODES.map((mode) => (
@@ -657,27 +659,28 @@ export const CryptoChart = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              {WATCHLIST.map((item) => (
-                <button
-                  key={item.pair}
-                  type="button"
-                  onClick={() => setSelectedPair(item.pair as MarketPair)}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition ${
-                    selectedPair === item.pair ? 'border border-blue-500/30 bg-blue-600/20 text-white' : 'bg-[#171c27] text-gray-300 hover:bg-[#1d2430]'
-                  }`}
-                >
-                  <div className="flex flex-col">
-                    <div className="font-medium">{item.pair}</div>
-                    <div className="text-[10px] text-gray-400">{item.name}</div>
-                  </div>
-                  <div className={`text-xs font-semibold ${item.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {item.change >= 0 ? '+' : ''}
-                    {item.change.toFixed(2)}%
-                  </div>
-                </button>
-              ))}
-            </div>
+            <label className="block">
+              <span className="sr-only">Select a watchlist market</span>
+              <select
+                value={WATCHLIST.some((item) => item.pair === selectedPair) ? selectedPair : ''}
+                onChange={(event) => {
+                  if (event.target.value) {
+                    setSelectedPair(event.target.value as MarketPair);
+                  }
+                }}
+                aria-label="Select a watchlist market"
+                className="w-full rounded-lg border border-gray-700 bg-[#171c27] px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+              >
+                <option value="" disabled>
+                  Select a market
+                </option>
+                {WATCHLIST.map((item) => (
+                  <option key={item.pair} value={item.pair}>
+                    {item.pair} — {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <div className="rounded-xl border border-gray-800 bg-[#10141d] p-4">
