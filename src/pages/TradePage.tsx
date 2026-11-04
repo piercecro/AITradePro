@@ -7,6 +7,16 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { fetchLivePrices } from '../lib/livePrices';
@@ -36,7 +46,7 @@ type TradeRow = {
   take_profit_price?: number | null;
 };
 
-type PricePoint = { price: number; time: string };
+type PricePoint = { price: number; time: string; source: 'live' | 'simulated' };
 
 const marketInstruments: Instrument[] = [
   { symbol: 'EUR/USD', label: 'Euro / Dollar', category: 'Currency', description: 'Major FX', price: 1.0862 },
@@ -144,6 +154,8 @@ export const TradePage = () => {
       let live: Record<string, { price: number }> = {};
       try { live = await fetchLivePrices(); } catch (error) { console.warn('Using simulated prices:', error); }
       if (cancelled) return;
+      const selectedQuote = live[selectedSymbol]?.price;
+      const hasLiveQuote = Number.isFinite(selectedQuote) && selectedQuote > 0;
       setMarketPrices((previous) => {
         const next = { ...previous };
         for (const instrument of marketInstruments) {
@@ -157,11 +169,19 @@ export const TradePage = () => {
           }
         }
         const nextSelectedPrice = next[selectedSymbol] ?? currentInstrument.price;
-        setPriceHistory((history) => [...history, { price: nextSelectedPrice, time: new Date().toLocaleTimeString() }].slice(-40));
+        setPriceHistory((history) => [...history, {
+          price: nextSelectedPrice,
+          time: new Date().toLocaleTimeString(),
+          source: hasLiveQuote ? 'live' : 'simulated',
+        }].slice(-60));
         return next;
       });
     };
-    setPriceHistory([{ price: marketPrices[selectedSymbol] ?? currentInstrument.price, time: new Date().toLocaleTimeString() }]);
+    setPriceHistory([{
+      price: marketPrices[selectedSymbol] ?? currentInstrument.price,
+      time: new Date().toLocaleTimeString(),
+      source: 'simulated',
+    }]);
     void refreshPrices();
     const timer = window.setInterval(() => void refreshPrices(), 5000);
     return () => { cancelled = true; window.clearInterval(timer); };
@@ -268,22 +288,8 @@ export const TradePage = () => {
     } finally { setIsClosingTradeId(null); }
   };
 
-  const chartWidth = 720;
-  const chartHeight = 210;
-  const candleData = priceHistory.map((point, index, points) => {
-    const previous = points[Math.max(index - 1, 0)] ?? point;
-    const open = previous.price;
-    const close = point.price;
-    const high = Math.max(open, close) * (1 + 0.003);
-    const low = Math.min(open, close) * (1 - 0.003);
-    return { open, high, low, close };
-  });
-  const chartValues = candleData.flatMap((candle) => [candle.open, candle.high, candle.low, candle.close]);
-  const minPrice = Math.min(...chartValues, currentPrice) * 0.998;
-  const maxPrice = Math.max(...chartValues, currentPrice) * 1.002;
-  const priceRange = Math.max(maxPrice - minPrice, currentPrice * 0.0001, 0.0001);
   const selectedOpenTrades = openTrades.filter((trade) => trade.trading_pair === selectedSymbol);
-  const priceToY = (price: number) => chartHeight - ((price - minPrice) / priceRange) * chartHeight;
+  const chartSource = priceHistory[priceHistory.length - 1]?.source === 'live' ? 'Live API' : 'Simulated fallback';
 
   return (
     <div className="min-h-screen bg-[#edf3f8] p-5 lg:p-6">
@@ -311,58 +317,80 @@ export const TradePage = () => {
         <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
           <section className="rounded-2xl border border-[#dfe7f0] bg-white p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div><h2 className="font-bold text-slate-800">{selectedSymbol} price movement</h2><p className="text-sm text-slate-500">{currentInstrument.label} · updates every 5 seconds</p></div>
-              <div className="text-right"><div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div><div className="text-xs text-slate-500">{selectedOpenTrades.length > 0 ? `${selectedOpenTrades.length} active position${selectedOpenTrades.length > 1 ? 's' : ''}` : 'No active position'}</div></div>
+              <div>
+                <h2 className="font-bold text-slate-800">{selectedSymbol} price movement</h2>
+                <p className="text-sm text-slate-500">{currentInstrument.label} · refreshes every 5 seconds</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-slate-800">{formatPrice(currentPrice, selectedSymbol)}</div>
+                <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500">
+                  <span className={`h-1.5 w-1.5 rounded-full ${chartSource === 'Live API' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  {chartSource}
+                  <span>·</span>
+                  {selectedOpenTrades.length > 0 ? `${selectedOpenTrades.length} active position${selectedOpenTrades.length > 1 ? 's' : ''}` : 'No active position'}
+                </div>
+              </div>
             </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#f7f9fc] p-3">
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none" className="h-56 w-full" role="img" aria-label={`${selectedSymbol} candlestick chart with open trade entry lines`}>
-                {[0.25, 0.5, 0.75].map((fraction) => (
-                  <line
-                    key={fraction}
-                    x1="0"
-                    x2={chartWidth}
-                    y1={chartHeight * fraction}
-                    y2={chartHeight * fraction}
-                    stroke="#dfe7f1"
-                    strokeDasharray="4 6"
-                  />
-                ))}
-                {selectedOpenTrades.map((trade) => {
-                  const y = priceToY(trade.entry_price);
-                  return (
-                    <g key={trade.id}>
-                      <line x1="0" x2={chartWidth} y1={y} y2={y} stroke={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} strokeDasharray="7 5" />
-                      <text x="8" y={Math.max(y - 5, 12)} fill={trade.trade_type === 'buy' ? '#34d399' : '#fb7185'} fontSize="11">{trade.trade_type.toUpperCase()} entry {formatPrice(trade.entry_price, selectedSymbol)}</text>
-                    </g>
-                  );
-                })}
-                {candleData.map((candle, index) => {
-                  const x = priceHistory.length <= 1 ? chartWidth / 2 : (index / Math.max(candleData.length - 1, 1)) * (chartWidth - 24) + 12;
-                  const yOpen = chartHeight - ((candle.open - minPrice) / priceRange) * chartHeight;
-                  const yClose = chartHeight - ((candle.close - minPrice) / priceRange) * chartHeight;
-                  const yHigh = chartHeight - ((candle.high - minPrice) / priceRange) * chartHeight;
-                  const yLow = chartHeight - ((candle.low - minPrice) / priceRange) * chartHeight;
-                  const isUp = candle.close >= candle.open;
-                  const color = isUp ? '#22c55e' : '#ef4444';
-                  const candleWidth = Math.max(6, Math.min(12, (chartWidth / Math.max(candleData.length, 1)) * 0.7));
-
-                  return (
-                    <g key={`${candle.open}-${candle.close}-${index}`}>
-                      <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-                      <rect
-                        x={x - candleWidth / 2}
-                        y={Math.min(yOpen, yClose)}
-                        width={candleWidth}
-                        height={Math.max(Math.abs(yClose - yOpen), 4)}
-                        rx={2}
-                        fill={color}
-                        opacity={0.9}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#fbfcfe] p-2">
+              {priceHistory.length > 1 ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart data={priceHistory} margin={{ top: 10, right: 12, bottom: 0, left: 4 }}>
+                    <defs>
+                      <linearGradient id="tradePriceFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#e8eef5" strokeDasharray="3 5" vertical={false} />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: '#94a3b8', fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={28}
+                    />
+                    <YAxis
+                      domain={['auto', 'auto']}
+                      tickFormatter={(value: number) => formatPrice(value, selectedSymbol)}
+                      tick={{ fill: '#94a3b8', fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={76}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [formatPrice(value, selectedSymbol), selectedSymbol]}
+                      labelStyle={{ color: '#334155', fontWeight: 600 }}
+                      contentStyle={{ border: '1px solid #dfe7f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)' }}
+                    />
+                    {selectedOpenTrades.map((trade) => (
+                      <ReferenceLine
+                        key={trade.id}
+                        y={trade.entry_price}
+                        stroke={trade.trade_type === 'buy' ? '#10b981' : '#f43f5e'}
+                        strokeDasharray="5 5"
+                        strokeOpacity={0.75}
                       />
-                    </g>
-                  );
-                })}
-              </svg>
-              <div className="mt-1 flex justify-between text-[11px] text-slate-500"><span>{priceHistory[0]?.time ?? 'Waiting for price'}</span><span>Live chart</span><span>{priceHistory[priceHistory.length - 1]?.time ?? 'Now'}</span></div>
+                    ))}
+                    <Area
+                      type="monotone"
+                      dataKey="price"
+                      stroke="#059669"
+                      strokeWidth={2}
+                      fill="url(#tradePriceFill)"
+                      activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-[240px] items-center justify-center text-sm text-slate-400">Waiting for price updates…</div>
+              )}
+              <div className="mt-1 flex justify-between px-1 text-[10px] text-slate-400">
+                <span>{priceHistory[0]?.time ?? 'Waiting for price'}</span>
+                <span>{chartSource}</span>
+                <span>{priceHistory[priceHistory.length - 1]?.time ?? 'Now'}</span>
+              </div>
             </div>
             {selectedOpenTrades.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{selectedOpenTrades.map((trade) => {
               const pnl = getPnl(trade, currentPrice);
