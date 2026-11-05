@@ -159,7 +159,6 @@ export const BalancePage = ({ onNavigate }: BalancePageProps) => {
               <div className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
                 {balanceLoading ? 'Loading…' : money(profile?.available_balance)}
               </div>
-              <div className="mt-1 text-xs text-slate-500">Live value from your Supabase user profile</div>
             </div>
             <button type="button" onClick={() => { void loadBalance(); void loadTrades(); }} disabled={balanceLoading || authLoading}
               className="flex items-center gap-2 rounded-lg border border-[#dfe7f0] px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
@@ -177,11 +176,11 @@ export const BalancePage = ({ onNavigate }: BalancePageProps) => {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 rounded-xl border border-[#dfe7f0] bg-[#f3f6fb] p-1 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
             <button type="button" onClick={() => setActiveTab('assets')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'assets' ? 'bg-white text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0]' : 'text-slate-500 hover:text-slate-700'}`}>
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'assets' ? 'bg-white text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0]' : 'text-slate-500 hover:text-slate-800'}`}>
               Assets ({trades.length})
             </button>
             <button type="button" onClick={() => setActiveTab('positions')}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'positions' ? 'bg-white text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0]' : 'text-slate-500 hover:text-slate-700'}`}>
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'positions' ? 'bg-white text-[#1d4ed8] shadow-sm ring-1 ring-[#dfe7f0]' : 'text-slate-500 hover:text-slate-800'}`}>
               Positions ({openTradesCount} open · {closedTradesCount} closed)
             </button>
           </div>

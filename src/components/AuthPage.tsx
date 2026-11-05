@@ -51,85 +51,100 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-4">
-      <div className="absolute left-6 top-6 flex items-center space-x-3 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 py-24 sm:py-28">
+      <div className="absolute left-6 top-6 z-10 flex items-center space-x-3 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white">A</div>
         <span className="text-xl font-semibold tracking-tight text-slate-900">AITradePro</span>
       </div>
 
-      <button type="button" className="absolute right-6 top-6 flex items-center space-x-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
+      <button type="button" className="absolute right-6 top-6 z-10 flex items-center space-x-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
         <Globe size={18} />
         <span className="text-sm font-medium">EN</span>
         <ChevronDown size={14} />
       </button>
 
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-          <h1 className="mb-6 text-2xl font-bold text-slate-900">{isLogin ? 'Hello again' : 'Create account'}</h1>
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+        <section className="order-2 mx-auto w-full max-w-md lg:order-1 lg:ml-0">
+          <header className="mb-6 text-center lg:text-left">
+            <h1 className="bg-gradient-to-r from-blue-700 via-sky-500 to-cyan-400 bg-clip-text text-3xl font-extrabold leading-tight tracking-tight text-transparent sm:text-4xl">
+              Where the world markets is automated
+            </h1>
+            <p className="mt-3 text-lg font-semibold leading-relaxed text-slate-600">
+              Join <span className="bg-gradient-to-r from-sky-600 to-cyan-500 bg-clip-text font-extrabold text-transparent">100 million</span> traders and investors taking the future into their own hands.
+            </p>
+          </header>
 
-          {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
-          {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
-          {unavailableNotice && <div role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{unavailableNotice}</div>}
+          <div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+            <h2 className="mb-6 text-2xl font-bold text-slate-900">{isLogin ? 'Hello again' : 'Create account'}</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+            {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+            {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
+            {unavailableNotice && <div role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{unavailableNotice}</div>}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div>
+                  <label className="mb-2 block text-sm text-slate-600">Username</label>
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100" placeholder="Choose a username" required />
+                </div>
+              )}
+
               <div>
-                <label className="mb-2 block text-sm text-slate-600">Username</label>
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 transition-colors focus:border-sky-500 focus:outline-none" required />
+                <label className="mb-2 block text-sm text-slate-600">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100" placeholder="you@example.com" required />
               </div>
-            )}
 
-            <div>
-              <label className="mb-2 block text-sm text-slate-600">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 transition-colors focus:border-sky-500 focus:outline-none" required />
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm text-slate-600">Password</label>
+                  {isLogin && <button type="button" onClick={() => setUnavailableNotice('Password reset is not available right now, try again.')} className="text-sm text-sky-600 hover:underline">Forgot password?</button>}
+                </div>
+                <div className="relative">
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100" placeholder="Enter your password" required />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full rounded-lg bg-gradient-to-r from-sky-600 to-cyan-500 py-3 font-semibold text-white transition-all hover:from-sky-700 hover:to-cyan-600 disabled:opacity-50">
+                {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <span className="text-slate-500">{isLogin ? "Don't have an account?" : 'Already have an account?'} </span>
+              <button onClick={() => { setIsLogin(!isLogin); setError(''); setMessage(''); }} className="font-medium text-sky-600 hover:underline">
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </button>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-sm text-slate-600">Password</label>
-                {isLogin && <button type="button" onClick={() => setUnavailableNotice('Password reset is not available right now, try again.')} className="text-sm text-sky-600 hover:underline">Forgot password?</button>}
-              </div>
-              <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 placeholder:text-slate-400 transition-colors focus:border-sky-500 focus:outline-none" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600" aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                  {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                </button>
-              </div>
+            <div className="my-6 text-center text-sm text-slate-400">Or continue with</div>
+            <div className="mb-6 flex justify-center space-x-4">
+              <button type="button" onClick={showUnavailableMessage} aria-label="Continue with Google" className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 transition-colors hover:bg-slate-100">
+                <GoogleIcon />
+              </button>
+              <button type="button" onClick={showUnavailableMessage} aria-label="Continue with Apple" className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-900 transition-colors hover:bg-slate-100">
+                <AppleIcon />
+              </button>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full rounded-lg bg-gradient-to-r from-sky-600 to-cyan-500 py-3 font-semibold text-white transition-all hover:from-sky-700 hover:to-cyan-600 disabled:opacity-50">
-              {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <span className="text-slate-500">{isLogin ? "Don't have an account?" : 'Already have an account?'} </span>
-            <button onClick={() => { setIsLogin(!isLogin); setError(''); setMessage(''); }} className="font-medium text-sky-600 hover:underline">
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <StoreButton platform="App Store" onClick={showUnavailableMessage} icon={<AppleIcon />} />
+              <StoreButton platform="Google Play" onClick={showUnavailableMessage} icon={<PlayIcon />} />
+            </div>
           </div>
 
-          <div className="my-6 text-center text-sm text-slate-400">Or continue with</div>
-          <div className="mb-6 flex justify-center space-x-4">
-            <button type="button" onClick={showUnavailableMessage} aria-label="Continue with Google" className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 transition-colors hover:bg-slate-100">
-              <GoogleIcon />
-            </button>
-            <button type="button" onClick={showUnavailableMessage} aria-label="Continue with Apple" className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-900 transition-colors hover:bg-slate-100">
-              <AppleIcon />
-            </button>
-          </div>
+          {isLogin && (
+            <div className="mt-6 text-center text-xs leading-relaxed text-slate-500">
+              AITradePro is operated by White Mint Financial Company s.r.o., a registered company in the Czech Republic (registration number 17260884). White Mint Financial Company s.r.o. is regulated by the Czech National Bank.
+            </div>
+          )}
+        </section>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            <StoreButton platform="App Store" onClick={showUnavailableMessage} icon={<AppleIcon />} />
-            <StoreButton platform="Google Play" onClick={showUnavailableMessage} icon={<PlayIcon />} />
-          </div>
+        <div className="order-1 hidden h-[min(78vh,52rem)] min-h-[34rem] overflow-hidden rounded-3xl shadow-[0_24px_70px_rgba(15,23,42,0.18)] lg:order-2 lg:block">
+          <img src="/images/signup-sunrise.svg" alt="Sunrise over green mountain hills with the message: Start your autotrading journey" className="h-full w-full object-cover" />
         </div>
-
-        {isLogin && (
-          <div className="mt-6 text-center text-xs leading-relaxed text-slate-500">
-            AITradePro is operated by White Mint Financial Company s.r.o., a registered company in the Czech Republic (registration number 17260884). White Mint Financial Company s.r.o. is regulated by FAU in the Czech Republic and holds an active license to engage in the intermediation of trading services, the provision of services associated with virtual assets and the manufacturing trading services. © 2025 AITradePro
-          </div>
-        )}
       </div>
     </div>
   );
@@ -160,7 +175,7 @@ const GoogleIcon = () => (
 
 const AppleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.36 1.81-3.02 1.85-2.31 6.14.51 7.27-.57 1.49-1.34 2.98-2.52 3.93zM12.03 7.25c-.15-2.22 1.67-4.08 3.75-4.25.29 2.47-2.24 4.4-3.75 4.25z" />
+    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.47 1.72-3.05 1.83-2.33 6.1.47 7.22-.56 1.48-1.28 2.94-2.59 4.07zM12.03 7.18c-.15-2.2 1.64-4.02 3.7-4.18.29 2.53-2.3 4.42-3.7 4.18z" />
   </svg>
 );
 

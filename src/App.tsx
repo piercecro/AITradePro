@@ -15,6 +15,8 @@ import { ReferralPage } from './pages/ReferralPage';
 import { MyAccountPage } from './pages/MyAccountPage';
 import { AdminDepositPanel } from './pages/AdminDepositPanel';
 import Testimonials from './components/Testimonials/Testimonials';
+import FAQ from './components/FAQ';
+import ShowcaseCarousel from './components/ShowcaseCarousel';
 import { supabase } from './lib/supabase';
 
 const AppContent = () => {
@@ -94,12 +96,14 @@ const AppContent = () => {
     return (
       <>
         <AuthPage />
+        <ShowcaseCarousel />
         <section className="bg-[#edf3f8] px-4 py-12 sm:px-8">
           <div className="mx-auto max-w-6xl">
             <h2 className="mb-8 text-center text-2xl font-bold text-slate-800">What our users say</h2>
             <Testimonials />
           </div>
         </section>
+        <FAQ />
       </>
     );
   }
