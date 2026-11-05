@@ -1,1 +1,31 @@
-/logo.svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1000" role="img" aria-labelledby="title description">
+  <title id="title">AiTradePro</title>
+  <desc id="description">Blue rising market arrow with candlesticks above the AiTradePro wordmark.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#123bba"/>
+      <stop offset=".52" stop-color="#0878f9"/>
+      <stop offset="1" stop-color="#08c5e8"/>
+    </linearGradient>
+    <linearGradient id="darkBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07152d"/>
+      <stop offset="1" stop-color="#0878bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1000" fill="#fff"/>
+  <g>
+    <path d="M224 575 456 158h128L490 318 354 427Z" fill="url(#blue)"/>
+    <path d="m584 158 101 179-87 53-61-105Z" fill="url(#darkBlue)"/>
+    <path d="m465 441 69-37 90 151H505Z" fill="url(#blue)"/>
+    <path d="m224 601 123-145 279-94 229-158-66-4 137-61-26 145-29-57-257 190-321 93Z" fill="url(#blue)"/>
+    <path d="m224 601 175-110 287-94 169-116-24 38-151 112-300 99-160 71Z" fill="#123bba" opacity=".55"/>
+    <g stroke-linecap="round" stroke-width="8">
+      <path d="M682 479v-63m0 163v-41" stroke="#078cf4"/><rect x="666" y="435" width="32" height="65" rx="4" fill="#078cf4"/>
+      <path d="M738 450v-51m0 157v-43" stroke="#101820"/><rect x="722" y="420" width="32" height="82" rx="4" fill="#101820"/>
+      <path d="M794 410v-50m0 188v-48" stroke="#078cf4"/><rect x="778" y="382" width="32" height="100" rx="4" fill="#078cf4"/>
+    </g>
+  </g>
+  <text x="92" y="790" font-family="Arial, Helvetica, sans-serif" font-size="162" font-weight="900" font-style="italic" letter-spacing="-10" fill="#101418">AiTrade</text>
+  <text x="747" y="790" font-family="Arial, Helvetica, sans-serif" font-size="162" font-weight="900" font-style="italic" letter-spacing="-10" fill="#078cf4">Pro</text>
+  <path d="M144 846c164-70 430-93 673-48" fill="none" stroke="url(#blue)" stroke-linecap="round" stroke-width="13"/>
+</svg>
