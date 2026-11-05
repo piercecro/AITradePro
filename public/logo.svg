@@ -1,31 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1000" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" role="img" aria-labelledby="title desc">
   <title id="title">AiTradePro</title>
-  <desc id="description">Blue rising market arrow with candlesticks above the AiTradePro wordmark.</desc>
+  <desc id="desc">Blue trading-themed logo with an abstract A and the AiTradePro wordmark.</desc>
   <defs>
-    <linearGradient id="blue" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#123bba"/>
-      <stop offset=".52" stop-color="#0878f9"/>
-      <stop offset="1" stop-color="#08c5e8"/>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1ca9ff"/>
+      <stop offset="34%" stop-color="#0d8fe9"/>
+      <stop offset="68%" stop-color="#0a6fcf"/>
+      <stop offset="100%" stop-color="#0a2d69"/>
     </linearGradient>
-    <linearGradient id="darkBlue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#07152d"/>
-      <stop offset="1" stop-color="#0878bd"/>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0c3d9d"/>
+      <stop offset="100%" stop-color="#0bbedb"/>
     </linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a295d"/>
+      <stop offset="100%" stop-color="#0e7fe3"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0a1f44" flood-opacity="0.18"/>
+    </filter>
   </defs>
-  <rect width="1200" height="1000" fill="#fff"/>
-  <g>
-    <path d="M224 575 456 158h128L490 318 354 427Z" fill="url(#blue)"/>
-    <path d="m584 158 101 179-87 53-61-105Z" fill="url(#darkBlue)"/>
-    <path d="m465 441 69-37 90 151H505Z" fill="url(#blue)"/>
-    <path d="m224 601 123-145 279-94 229-158-66-4 137-61-26 145-29-57-257 190-321 93Z" fill="url(#blue)"/>
-    <path d="m224 601 175-110 287-94 169-116-24 38-151 112-300 99-160 71Z" fill="#123bba" opacity=".55"/>
-    <g stroke-linecap="round" stroke-width="8">
-      <path d="M682 479v-63m0 163v-41" stroke="#078cf4"/><rect x="666" y="435" width="32" height="65" rx="4" fill="#078cf4"/>
-      <path d="M738 450v-51m0 157v-43" stroke="#101820"/><rect x="722" y="420" width="32" height="82" rx="4" fill="#101820"/>
-      <path d="M794 410v-50m0 188v-48" stroke="#078cf4"/><rect x="778" y="382" width="32" height="100" rx="4" fill="#078cf4"/>
-    </g>
+
+  <rect width="1600" height="1200" fill="#f5f5f5"/>
+
+  <g filter="url(#shadow)">
+    <path d="M410 330 700 860 620 860 430 510 258 860 170 860 410 330Z" fill="#0f172a" opacity="0.96"/>
+    <path d="M388 368 610 820 547 820 438 585 300 820 234 820 388 368Z" fill="url(#g1)"/>
+    <path d="M520 330 760 330 980 857 890 857 822 687 465 687 403 857 310 857 520 330ZM552 563H744L708 628H588L552 563Z" fill="#0a1230" opacity="0.9"/>
+    <path d="M549 338 776 338 964 734 904 734 734 450 571 450 406 734 348 734 549 338Z" fill="url(#g1)"/>
+    <path d="M1010 252 1170 391 858 430 1010 252Z" fill="url(#g3)" opacity="0.95"/>
+    <path d="M831 324 992 392 865 586 766 482 831 324Z" fill="url(#g2)"/>
+    <path d="M958 312 1132 333 1052 460 942 467 958 312Z" fill="url(#g1)" opacity="0.95"/>
   </g>
-  <text x="92" y="790" font-family="Arial, Helvetica, sans-serif" font-size="162" font-weight="900" font-style="italic" letter-spacing="-10" fill="#101418">AiTrade</text>
-  <text x="747" y="790" font-family="Arial, Helvetica, sans-serif" font-size="162" font-weight="900" font-style="italic" letter-spacing="-10" fill="#078cf4">Pro</text>
-  <path d="M144 846c164-70 430-93 673-48" fill="none" stroke="url(#blue)" stroke-linecap="round" stroke-width="13"/>
+
+  <g>
+    <path d="M1026 311 L1234 432 L1102 493 L1020 384 Z" fill="#0f7ce0"/>
+    <path d="M1086 453 L1212 452 L1274 283 L1322 283 L1227 515 L1086 453Z" fill="#31aef7"/>
+    <path d="M1105 447 L1226 448 L1175 500 L1098 500 Z" fill="#0990ea"/>
+    <path d="M1180 454 L1281 386 L1371 427 L1282 513 Z" fill="#0b63c4"/>
+    <path d="M1148 528 L1308 526 L1296 560 L1151 560 Z" fill="#0d2f68"/>
+    <path d="M1163 566 L1322 567 L1288 637 L1164 640 Z" fill="#0b68d5"/>
+  </g>
+
+  <g>
+    <rect x="1025" y="654" width="30" height="148" rx="4" fill="#0a1527"/>
+    <rect x="1102" y="610" width="30" height="192" rx="4" fill="#0a1527"/>
+    <rect x="1180" y="678" width="30" height="124" rx="4" fill="#0a1527"/>
+    <rect x="990" y="681" width="50" height="47" rx="4" fill="#0d7ef1"/>
+    <rect x="1068" y="640" width="50" height="82" rx="4" fill="#0d7ef1"/>
+    <rect x="1145" y="705" width="50" height="50" rx="4" fill="#0d7ef1"/>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="900" letter-spacing="-12">
+    <text x="48" y="1018" font-size="190" fill="#0f172a">AiTrade</text>
+    <text x="820" y="1018" font-size="190" fill="#0a9ae8">Pro</text>
+  </g>
+
+  <path d="M118 928 C420 828, 780 824, 1090 900 S1460 980, 1520 932" fill="none" stroke="url(#g1)" stroke-width="18" stroke-linecap="round"/>
 </svg>
