@@ -51,3 +51,22 @@ svg[aria-label="Market candles"] rect {
   transform-box: fill-box;
   transform-origin: center;
 }
+
+/* Let the portfolio graph expand to the full height of its dashboard card. */
+main div:has(> .recharts-responsive-container) {
+  flex: 1 1 auto;
+  height: auto !important;
+  min-height: 250px;
+}
+
+main div:has(> div:has(> .recharts-responsive-container)) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Replace the signup header's temporary A tile with the compact brand mark. */
+.absolute.left-6.top-6.z-10.flex.items-center.space-x-3 > div:first-child {
+  color: transparent !important;
+  font-size: 0 !important;
+  background: #f5f9ff url('/logo-mark.svg') center / cover no-repeat !important;
+}
