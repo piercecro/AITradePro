@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TradePage as TradingPage } from '../pages/TradePage';
 import { TradeOrderTicket } from './TradeOrderTicket';
 import { TradePricesProvider } from './TradePricesContext';
+import { TradeStockSections } from './TradeStockSections';
 
 const TradePageLayout = () => {
   const [sidebar, setSidebar] = useState<HTMLElement | null>(null);
@@ -30,6 +31,7 @@ const TradePageLayout = () => {
   return (
     <div data-trade-page-root>
       <TradingPage />
+      <TradeStockSections />
       {sidebar && createPortal(
         <div style={{ order: -1 }}>
           <TradeOrderTicket />
