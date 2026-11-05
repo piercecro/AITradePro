@@ -24,9 +24,6 @@ const countries: Country[] = [
 const toneClass: Record<NonNullable<Indicator['tone']>, string> = { positive: 'bg-cyan-100 text-slate-800', negative: 'bg-orange-100 text-slate-800', neutral: 'bg-slate-50 text-slate-700' };
 const inflationRates: Record<string, number> = { USA: 3.4, 'United States of America': 3.4, China: 0.9, Germany: 2.2, Japan: 2.8, 'United Kingdom': 3, France: 1.8, India: 5.2, Russia: 6.3, Canada: 2.1, Brazil: 4.8, Mexico: 4.7, Türkiye: 38, Turkey: 38, Nigeria: 24.5, 'South Africa': 5.3, Australia: 3.6, Spain: 2.3, Italy: 1.9, Argentina: 118, Egypt: 28, Pakistan: 9.6, Ukraine: 6.5, Poland: 4.3, Indonesia: 2.8, Vietnam: 3.6, Korea: 2.1, 'South Korea': 2.1 };
 const inflationColor = (value: number) => value >= 20 ? '#ed4b00' : value >= 12 ? '#f47700' : value >= 7 ? '#ff9900' : value >= 4 ? '#ffbd59' : value >= 2 ? '#ffdda8' : '#fff0d6';
-const mapPoints = [
-  { x: 150, y: 126, country: 'Canada', rate: 2.1 }, { x: 183, y: 184, country: 'United States', rate: 3.4 }, { x: 215, y: 263, country: 'Mexico', rate: 4.7 }, { x: 287, y: 339, country: 'Brazil', rate: 4.8 }, { x: 476, y: 137, country: 'United Kingdom', rate: 3 }, { x: 500, y: 160, country: 'France', rate: 1.8 }, { x: 525, y: 148, country: 'Germany', rate: 2.2 }, { x: 585, y: 180, country: 'Türkiye', rate: 38 }, { x: 620, y: 205, country: 'Nigeria', rate: 24.5 }, { x: 653, y: 243, country: 'South Africa', rate: 5.3 }, { x: 698, y: 184, country: 'India', rate: 5.2 }, { x: 751, y: 161, country: 'China', rate: 0.9 }, { x: 793, y: 186, country: 'Japan', rate: 2.8 }, { x: 850, y: 294, country: 'Australia', rate: 3.6 },
-];
 const companies: Company[] = [
   { name: 'Apple Inc.', ticker: 'AAPL', mark: '●', color: '#17191d', price: '349.51 USD', change: '+5.31%', up: true, cap: '$5.10T' }, { name: 'NVIDIA Corporation', ticker: 'NVDA', mark: '◉', color: '#76b900', price: '200.13 USD', change: '−3.17%', up: false, cap: '$4.82T' }, { name: 'Microsoft Corporation', ticker: 'MSFT', mark: '▦', color: '#1685d1', price: '555.80 USD', change: '+6.68%', up: true, cap: '$4.13T' }, { name: 'Alphabet Inc.', ticker: 'GOOGL', mark: 'G', color: '#4285f4', price: '288.93 USD', change: '+3.18%', up: true, cap: '$3.52T' }, { name: 'Amazon.com, Inc.', ticker: 'AMZN', mark: 'a', color: '#ff6b00', price: '266.03 USD', change: '+6.12%', up: true, cap: '$2.88T' }, { name: 'Space Exploration Technologies', ticker: 'SPCX', mark: '✦', color: '#20242a', price: '135.92 USD', change: '−3.81%', up: false, cap: '$1.85T' },
 ];
@@ -39,39 +36,18 @@ const earnings: CalendarEntry[] = [
 const ipos: CalendarEntry[] = [
   { day: 'Nov', date: '04', name: 'EST, Inc.', ticker: '495910', mark: 'E', exchange: 'KRX', offer: '12,400.00 KRW' }, { day: 'Nov', date: '04', name: 'Allganize Holdings, Inc.', ticker: '656A', mark: 'A', exchange: 'TSE', offer: '1,260.00 JPY' }, { day: 'Nov', date: '04', name: 'AJWA PROJECTS LIMITED', ticker: 'AJWA', mark: 'A', exchange: 'BSE', offer: '203.00 INR' }, { day: 'Nov', date: '04', name: 'CARVER ROBOWELD LIMITED', ticker: 'CRL', mark: 'C', exchange: 'BSE', offer: '76.00–80.00 INR' }, { day: 'Nov', date: '04', name: 'M K SONS FINE JEWELS LIMITED', ticker: 'MKJEWELS', mark: 'M', exchange: 'BSE', offer: '162.00 INR' }, { day: 'Nov', date: '05', name: 'LTV X Inc.', ticker: '655A', mark: 'L', exchange: 'TSE', offer: '570.00 JPY' },
 ];
-const cardClass = 'rounded-[16px] border border-[#e4e9ef] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.025)]';
+const cardClass = 'rounded-[16px] border border-[#e4e9ef] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.025)] after:mt-4 after:block after:border-t after:border-[#edf0f3] after:pt-3 after:text-center after:text-[11px] after:font-semibold after:text-slate-400 after:content-[\'Full_version_available_for_premium_user\']';
 const Title = ({ children }: { children: string }) => <h2 className="text-[22px] font-semibold tracking-[-0.035em] text-slate-900">{children}<ChevronRight className="ml-0.5 inline" size={19} /></h2>;
-
 const CompanyCard = ({ title, rows, employer = false }: { title: string; rows: Company[]; employer?: boolean }) => <div className={cardClass}><div className="mb-5"><Title>{title}</Title></div><div className="grid grid-cols-[minmax(150px,1.7fr)_minmax(95px,1fr)_minmax(65px,.7fr)] px-1 pb-2 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400"><div>Symbol</div><div className="text-right">Price &amp; change</div><div className="text-right">{employer ? 'Employees' : 'Market cap'}</div></div>{rows.map((company) => <div key={company.ticker} className="grid min-h-[58px] grid-cols-[minmax(150px,1.7fr)_minmax(95px,1fr)_minmax(65px,.7fr)] items-center gap-2 border-t border-[#edf0f3] px-1 py-2"><div className="flex min-w-0 items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black text-white" style={{ backgroundColor: company.color }}>{company.mark}</span><div className="min-w-0"><div className="truncate text-xs font-medium text-slate-900">{company.name}</div><span className="mt-0.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700">{company.ticker}</span></div></div><div className="text-right"><div className="text-[11px] font-medium text-slate-900">{company.price}</div><div className={`mt-0.5 text-[11px] ${company.up ? 'text-teal-600' : 'text-rose-500'}`}>{company.change}</div></div><div className="text-right text-xs font-medium text-slate-900">{employer ? company.employees : company.cap}</div></div>)}<div className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-blue-600">See all {employer ? 'world biggest employers' : 'world major companies'} <ChevronRight size={14} /></div></div>;
-
 const CalendarCard = ({ title, entries, kind }: { title: string; entries: CalendarEntry[]; kind: 'earnings' | 'ipo' }) => <div className={cardClass}><div className="mb-5"><Title>{title}</Title></div><div className="grid grid-cols-[36px_minmax(125px,1fr)_minmax(65px,.65fr)_minmax(82px,.75fr)] gap-2 px-1 pb-2 text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400"><div /><div>Symbol</div><div className="text-right">{kind === 'earnings' ? 'Actual' : 'Exchange'}</div><div className="text-right">{kind === 'earnings' ? 'Estimate' : 'Offer price'}</div></div>{entries.map((item) => <div key={item.ticker} className="grid min-h-[56px] grid-cols-[36px_minmax(125px,1fr)_minmax(65px,.65fr)_minmax(82px,.75fr)] items-center gap-2 border-t border-[#edf0f3] px-1 py-2"><div className="flex h-9 w-8 flex-col items-center justify-center rounded-md bg-slate-50 text-[9px] leading-tight text-slate-600"><span>{item.day}</span><strong className="text-xs text-slate-900">{item.date}</strong></div><div className="flex min-w-0 items-center gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-xs font-bold text-slate-600">{item.mark}</span><div className="min-w-0"><div className="truncate text-xs font-medium text-slate-900">{item.name}</div><span className="mt-0.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700">{item.ticker}</span></div></div><div className="text-right text-[10px] font-medium text-slate-800">{kind === 'earnings' ? item.actual : item.exchange}</div><div className="text-right text-[10px] font-medium text-slate-800">{kind === 'earnings' ? item.estimate : item.offer}</div></div>)}</div>;
-
 const project = (coordinate: number[]) => `${((coordinate[0] + 180) / 360) * 1000},${((90 - Math.max(-60, Math.min(85, coordinate[1]))) / 145) * 470}`;
 const ringPath = (ring: number[][]) => ring.map((point, index) => `${index ? 'L' : 'M'}${project(point)}`).join(' ') + 'Z';
-const geometryPath = (geometry: GeoGeometry) => geometry.type === 'Polygon'
-  ? (geometry.coordinates as number[][][]).map(ringPath).join(' ')
-  : (geometry.coordinates as number[][][][]).flatMap((polygon) => polygon.map(ringPath)).join(' ');
-const fallbackRate = (name: string) => {
-  let hash = 0;
-  for (let index = 0; index < name.length; index += 1) hash = (hash * 31 + name.charCodeAt(index)) | 0;
-  return [1.1, 1.8, 2.4, 3.1, 3.8, 4.6, 5.5, 6.4, 8.2, 11.5][Math.abs(hash) % 10];
-};
-
+const geometryPath = (geometry: GeoGeometry) => geometry.type === 'Polygon' ? (geometry.coordinates as number[][][]).map(ringPath).join(' ') : (geometry.coordinates as number[][][][]).flatMap((polygon) => polygon.map(ringPath)).join(' ');
+const fallbackRate = (name: string) => { let hash = 0; for (let index = 0; index < name.length; index += 1) hash = (hash * 31 + name.charCodeAt(index)) | 0; return [1.1, 1.8, 2.4, 3.1, 3.8, 4.6, 5.5, 6.4, 8.2, 11.5][Math.abs(hash) % 10]; };
 const WorldMap = () => {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson', { signal: controller.signal })
-      .then((response) => { if (!response.ok) throw new Error('Map data request failed'); return response.json() as Promise<GeoCollection>; })
-      .then((data) => setFeatures(data.features.filter((feature) => String(feature.properties.ADMIN ?? feature.properties.name ?? '') !== 'Antarctica')))
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
-  const rendered = useMemo(() => features.map((feature, index) => {
-    const name = String(feature.properties.ADMIN ?? feature.properties.name ?? `Country ${index}`);
-    const rate = inflationRates[name] ?? fallbackRate(name);
-    return { name, rate, path: geometryPath(feature.geometry) };
-  }), [features]);
+  useEffect(() => { const controller = new AbortController(); fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson', { signal: controller.signal }).then((response) => { if (!response.ok) throw new Error('Map data request failed'); return response.json() as Promise<GeoCollection>; }).then((data) => setFeatures(data.features.filter((feature) => String(feature.properties.ADMIN ?? feature.properties.name ?? '') !== 'Antarctica'))).catch(() => undefined); return () => controller.abort(); }, []);
+  const rendered = useMemo(() => features.map((feature, index) => { const name = String(feature.properties.ADMIN ?? feature.properties.name ?? `Country ${index}`); const rate = inflationRates[name] ?? fallbackRate(name); return { name, rate, path: geometryPath(feature.geometry) }; }), [features]);
   return <svg viewBox="0 0 1000 470" role="img" aria-label="World map shaded by inflation rates" className="block h-auto w-full" preserveAspectRatio="xMidYMid meet"><rect width="1000" height="470" fill="#fff" />{rendered.map((country) => <path key={country.name} d={country.path} fill={inflationColor(country.rate)} stroke="#fff" strokeWidth="1.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke"><title>{country.name}: {country.rate}%</title></path>)}</svg>;
 };
 
