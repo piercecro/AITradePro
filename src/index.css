@@ -52,16 +52,21 @@ svg[aria-label="Market candles"] rect {
   transform-origin: center;
 }
 
-/* Let the portfolio graph expand to the full height of its dashboard card. */
-main div:has(> .recharts-responsive-container) {
+/* Stretch only the dashboard portfolio chart area; keep Recharts' measured height intact. */
+main > div > div > section.grid:first-of-type > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+main > div > div > section.grid:first-of-type > div:first-child > div:has(> .recharts-responsive-container) {
   flex: 1 1 auto;
-  height: auto !important;
   min-height: 250px;
 }
 
-main div:has(> div:has(> .recharts-responsive-container)) {
-  display: flex;
-  flex-direction: column;
+/* Align the stock name, price and change columns consistently in both compact lists. */
+section[aria-label="Stock community trends and rankings"] > div.mt-12 > article > div > div {
+  grid-template-columns: minmax(0, 1fr) minmax(76px, 96px) 68px;
+  align-items: center;
 }
 
 /* Replace the signup header's temporary A tile with the compact brand mark. */
